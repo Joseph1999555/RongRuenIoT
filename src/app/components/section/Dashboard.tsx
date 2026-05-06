@@ -1,21 +1,13 @@
-import { queryString } from "../../utils/queryString";
-import DashboardUI from "./DashboardUI";
+import DashboardData from "./DashboardData";
 
-export default async function Dashboard() {
-  
-  const queryObj = {
-    action: 'read',
-    sheet: 'all',
-    limit: 10,
-  };
-  console.log('Query Object:', queryObj);
+export const metadata = {
+  title: "IoT Smart Farm Dashboard",
+};
 
-  const response = await queryString(queryObj);
-  console.log('API Response:', response);
-
+export default function DashboardPage() {
   return (
-    <div className="w-full max-w-4xl p-4 bg-white rounded-lg shadow">
-      <DashboardUI data={response} />
+    <div className="w-full max-w-7xl mx-auto">
+      <DashboardData />
     </div>
   );
 }

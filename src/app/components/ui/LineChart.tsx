@@ -39,10 +39,10 @@ export default function CustomLineChart({
   if (!data || data.length === 0) return <div className="text-gray-500 text-sm">ไม่มีข้อมูลสำหรับแสดงกราฟ</div>;
 
   return (
-    // 🌟 ใช้สไตล์ที่อนุญาตให้ Container ยืดหยุ่นตาม Parent (บีบลงมาได้ดีในจอมือถือ)
+    // ใช้สไตล์ที่อนุญาตให้ Container ยืดหยุ่นตาม Parent (บีบลงมาได้ดีในจอมือถือ)
     <div style={{ width: "100%", height: height, minHeight: 250 }}>
       <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
-        {/* 🌟 ปรับ margin ฝั่ง left ให้เป็น 0 (หรือเอาค่าติดลบออก) เพื่อไม่ให้ตัวเลขแกน Y ตกขอบจอมือถือ */}
+        {/* ปรับ margin ฝั่ง left ให้เป็น 0 (หรือเอาค่าติดลบออก) เพื่อไม่ให้ตัวเลขแกน Y ตกขอบจอมือถือ */}
         <RechartsLineChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 10 }}>
           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
           
@@ -51,16 +51,16 @@ export default function CustomLineChart({
             tickFormatter={formatXAxis}
             tick={{ fill: "#6b7280", fontSize: 12 }}
             tickLine={false}
-            tickMargin={10}       // 🌟 ขยับข้อความแกน X ลงมานิดนึงให้ไม่เบียดเส้น
-            minTickGap={30}       // 🌟 พระเอกกู้ชีพมือถือ! บังคับให้ป้ายแกน X เว้นระยะห่างกันอย่างน้อย 30px (ถ้าเบียดกัน มันจะซ่อนบางป้ายให้อัตโนมัติ)
+            tickMargin={10}       // ขยับข้อความแกน X ลงมานิดนึงให้ไม่เบียดเส้น
+            minTickGap={30}       // พระเอกกู้ชีพมือถือ! บังคับให้ป้ายแกน X เว้นระยะห่างกันอย่างน้อย 30px (ถ้าเบียดกัน มันจะซ่อนบางป้ายให้อัตโนมัติ)
           />
           
           <YAxis 
             tick={{ fill: "#6b7280", fontSize: 12 }} 
             tickLine={false} 
             axisLine={false}
-            tickMargin={10}       // 🌟 ขยับข้อความแกน Y ออกมาไม่ให้ติดเส้นเกินไป
-            width={40}            // 🌟 ล็อกความกว้างแกน Y ไว้เล็กน้อย ป้องกันกราฟกระตุกเวลาตัวเลขเปลี่ยนจาก 2 หลักเป็น 3 หลัก
+            tickMargin={10}       // ขยับข้อความแกน Y ออกมาไม่ให้ติดเส้นเกินไป
+            width={40}            // ล็อกความกว้างแกน Y ไว้เล็กน้อย ป้องกันกราฟกระตุกเวลาตัวเลขเปลี่ยนจาก 2 หลักเป็น 3 หลัก
           />
           
           <Tooltip
@@ -73,7 +73,7 @@ export default function CustomLineChart({
             }}
           />
           
-          {/* 🌟 ดัน Legend ลงมาข้างล่างนิดนึง จะได้ไม่กวนเส้นกราฟ */}
+          {/* ดัน Legend ลงมาข้างล่างนิดนึง จะได้ไม่กวนเส้นกราฟ */}
           <Legend wrapperStyle={{ paddingTop: "15px", fontSize: "14px" }} />
 
           {lines.map((line) => (
