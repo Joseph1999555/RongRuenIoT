@@ -5,7 +5,7 @@ interface ErrorResponse {
     error?: string;
 }
 
-//ใช้ดึงข้อมูลจาก Strapi API 
+// ใช้ดึงข้อมูลจาก Google Apps Script 
 export async function fetchFromSheet<T>({
     action,
     sheet,
@@ -13,25 +13,39 @@ export async function fetchFromSheet<T>({
     query
 }: {
     query?: string;
-    action? : string;
-    sheet? : string;
+    action?: string;
+    sheet?: string;
     limit?: number;
-}): Promise<T>{
+}): Promise<T> {
+    
     try {
-        const actionParam = action ? `action=${action}` : '';
-        const sheetParam = sheet ? `&sheet=${sheet}` : '';
-        const limitParam = limit ? `&limit=${limit}` : '';
-        const queryParam = query ? `${query}` : '';
+        // ใช้ URLSearchParams เพื่อช่วยจัดการเรื่องพารามิเตอร์แปลกๆ ที่อาจส่งมาจาก query
+        let customParams = {};
+        if (query) {
+            const searchParams = new URLSearchParams(query);
+            customParams = Object.fromEntries(searchParams.entries());
+        }
 
-        const fullPath = `${queryParam}${actionParam}${sheetParam}${limitParam}`;
         const response = await axios.get<T>(
-            `https://script.google.com/macros/s/AKfycbynj8rEVT7HX2x920JbZSi_rVz7qPqlEnufCDSNsPxPFYKLndczSRoaPgVQ1cUVRSUB/exec?${fullPath}`
-            , { timeout: 10000 }
+            `https://script.google.com/macros/s/AKfycbynj8rEVT7HX2x920JbZSi_rVz7qPqlEnufCDSNsPxPFYKLndczSRoaPgVQ1cUVRSUB/exec`,
+            {
+                params: {
+                    action: action || undefined,
+                    sheet: sheet || undefined,
+                    limit: limit || undefined,
+                    ...customParams,
+                    _t: Date.now() // เจาะ Cache ด้วยเวลาปัจจุบัน (Cache Buster)
+                },
+                timeout: 10000 
+            }
         );
+        
         return response.data;
+
     } catch (error) {
         if (axios.isAxiosError(error)) {
             const axiosError = error as AxiosError<ErrorResponse>;
+            
             // Network/Timeout Error
             if (!axiosError.response) {
                 const errorMsg = axiosError.code === 'ECONNABORTED'
@@ -46,6 +60,7 @@ export async function fetchFromSheet<T>({
             const { status, data } = axiosError.response;
             const serverMessage = data?.message || data?.error;
             console.error(`API Error ${status}:`, serverMessage || data);
+            
             // Throw user-friendly message
             const userMessage = serverMessage || getErrorMessage(status);
             throw new Error(userMessage);
@@ -61,7 +76,7 @@ export async function fetchFromSheet<T>({
             400: 'ข้อมูลไม่ถูกต้อง',
             401: 'กรุณาเข้าสู่ระบบใหม่',
             403: 'ไม่มีสิทธิ์เข้าถึง',
-            404: 'ไม่พบข้อมูลบทความ',
+            404: 'ไม่พบข้อมูล',
             429: 'กรุณารอสักครู่แล้วลองใหม่',
             500: 'เซิร์ฟเวอร์มีปัญหา',
         };
