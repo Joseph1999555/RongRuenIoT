@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useMemo } from "react";
-import { CloudRain, Droplets, ThermometerSun, Wind, Sprout, Activity } from "lucide-react";
+import React, { useMemo, useState } from "react";
+import { CloudRain, Droplets, ThermometerSun, Wind, Sprout, Activity, Settings, Moon, Sun, Globe } from "lucide-react";
 import ModernAreaChart, { GlassCard } from "../ui/ModernAreaChart";
+import { translations } from "@/app/data/mock/language";
 
 interface SensorApiResponse {
   "Time Stamp": string;
@@ -22,6 +23,12 @@ interface ProcessedSensor {
 }
 
 export default function DashboardUI({ data }: { data: SensorApiResponse[] }) {
+
+  const [isDark, setIsDark] = useState(true);
+  const [lang, setLang] = useState<"en" | "th">("en");
+  const [showSettings, setShowSettings] = useState(false);
+
+  const translation = translations[lang];
   
   // 1. ประมวลผลข้อมูล (จัดกลุ่มและเรียงเวลา)
   const { sensorsData, airSensor } = useMemo(() => {
@@ -72,24 +79,87 @@ export default function DashboardUI({ data }: { data: SensorApiResponse[] }) {
     return { sensorsData: otherSensors, airSensor: mainAirSensor };
   }, [data]);
 
+  // กำหนดสีธีมหลักตาม State isDark
+  const themeClasses = isDark 
+    ? "bg-gradient-to-br from-[#020617] via-[#0f172a] to-[#020617] text-white" 
+    : "bg-gradient-to-br from-slate-50 via-gray-100 to-slate-50 text-slate-800";
+
+  // กำหนดสีของการ์ดกระจกให้เปลี่ยนตามโหมด
+  const glassClasses = isDark
+    ? "bg-white/5 border-white/10"
+    : "bg-black/5 border-black/10 shadow-lg";
+
   return (
-    // 🌟 ใช้ min-h-screen และ w-full เพื่อขยายเต็มจอ
-    <div className="min-h-screen w-full bg-gradient-to-br from-[#020617] via-[#0f172a] to-[#020617] text-white p-4 md:p-6 lg:p-8 font-sans overflow-x-hidden">
+    //  ใช้ min-h-screen และ w-full เพื่อขยายเต็มจอ
+    <div className={`min-h-screen w-full p-4 md:p-6 lg:p-8 font-sans overflow-x-hidden transition-colors duration-500 ${themeClasses}`}>
       
       {/* --- HEADER --- */}
-      <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 relative">
         <div>
-          <h1 className="text-2xl md:text-3xl font-light tracking-wide text-white/90">
-            Control<span className="font-bold text-blue-400">Center</span>
+          <h1 className="text-2xl md:text-3xl font-light tracking-wide">
+            {translation.title1}<span className={`font-bold ${isDark ? "text-blue-400" : "text-blue-600"}`}>{translation.title2}</span>
           </h1>
-          <p className="text-white/40 text-sm mt-1">Smart Farm Global Monitoring System</p>
+          <p className={`text-sm mt-1 ${isDark ? "text-white/40" : "text-slate-500"}`}>{translation.subtitle}</p>
         </div>
-        <div className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 px-4 py-2 rounded-full">
-          <span className="relative flex h-2.5 w-2.5">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
-          </span>
-          <span className="text-xs font-medium text-emerald-400 tracking-wider">LIVE SYNC</span>
+        
+        <div className="flex items-center gap-4">
+          {/* ป้าย LIVE SYNC */}
+          <div className={`flex items-center gap-2 px-4 py-2 rounded-full border ${isDark ? "bg-emerald-500/10 border-emerald-500/20" : "bg-emerald-100 border-emerald-200"}`}>
+            <span className="relative flex h-2.5 w-2.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${isDark ? "bg-emerald-500" : "bg-emerald-600"}`}></span>
+            </span>
+            <span className={`text-xs font-medium tracking-wider ${isDark ? "text-emerald-400" : "text-emerald-700"}`}>{translation.live}</span>
+          </div>
+
+          {/* 🌟 ป้ายฟันเฟือง (Settings Dropdown) */}
+          <div className="relative">
+            <button 
+              onClick={() => setShowSettings(!showSettings)}
+              className={`p-2.5 rounded-full backdrop-blur-md border transition-all duration-300 hover:rotate-90 ${
+                isDark ? "bg-white/5 border-white/10 hover:bg-white/10 text-white/70" : "bg-black/5 border-black/10 hover:bg-black/10 text-slate-700"
+              }`}
+            >
+              <Settings className="w-5 h-5" />
+            </button>
+
+            {/* Dropdown Menu */}
+            {showSettings && (
+              <div className={`absolute right-0 top-12 w-56 rounded-2xl backdrop-blur-xl border p-2 shadow-2xl z-50 animate-in fade-in zoom-in-95 duration-200 ${
+                isDark ? "bg-[#0f172a]/90 border-white/10 text-white" : "bg-white/90 border-black/10 text-slate-800"
+              }`}>
+                <div className="px-3 py-2 border-b border-gray-500/20 mb-2">
+                  <p className="text-xs font-semibold uppercase tracking-wider opacity-60">{translation.settings}</p>
+                </div>
+
+                {/* เปลี่ยนธีม */}
+                <button 
+                  onClick={() => setIsDark(!isDark)}
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm transition-colors ${isDark ? "hover:bg-white/10" : "hover:bg-black/5"}`}
+                >
+                  <div className="flex items-center gap-3">
+                    {isDark ? <Moon className="w-4 h-4 text-blue-400" /> : <Sun className="w-4 h-4 text-amber-500" />}
+                    <span>{translation.theme}</span>
+                  </div>
+                  <span className="text-xs opacity-50">{isDark ? "Dark" : "Light"}</span>
+                </button>
+
+                {/* เปลี่ยนภาษา */}
+                <button 
+                  onClick={() => setLang(lang === "en" ? "th" : "en")}
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm transition-colors ${isDark ? "hover:bg-white/10" : "hover:bg-black/5"}`}
+                >
+                  <div className="flex items-center gap-3">
+                    <Globe className="w-4 h-4 text-emerald-500" />
+                    <span>{translation.language}</span>
+                  </div>
+                  <span className="text-xs font-medium uppercase bg-gray-500/20 px-2 py-0.5 rounded-md">{lang}</span>
+                </button>
+              </div>
+            )}
+          </div>
+          {/* 🌟 จบโซนฟันเฟือง */}
+
         </div>
       </header>
 
@@ -104,7 +174,7 @@ export default function DashboardUI({ data }: { data: SensorApiResponse[] }) {
             {/* โซนตัวเลขหลัก (ซ้าย) */}
             <div className="lg:col-span-4">
               <h2 className="text-white/50 text-sm font-medium mb-4 uppercase tracking-wider flex items-center gap-2">
-                <CloudRain className="w-4 h-4" /> Atmosphere (Node {airSensor.displayId})
+                <CloudRain className="w-4 h-4" /> {translation.atmosphere} (Node {airSensor.displayId})
               </h2>
               <div className="flex items-start gap-4">
                 <span className="text-7xl xl:text-8xl font-extralight tracking-tighter">{airSensor.latest.temp}</span>
@@ -114,12 +184,12 @@ export default function DashboardUI({ data }: { data: SensorApiResponse[] }) {
               </div>
               <div className="flex items-center gap-6 mt-6 bg-black/20 p-4 rounded-xl border border-white/5 w-fit">
                 <div>
-                  <p className="text-white/40 text-xs uppercase mb-1">Humidity</p>
+                  <p className="text-white/40 text-xs uppercase mb-1">{translation.humidity}</p>
                   <p className="text-xl font-medium">{airSensor.latest.humidity} <span className="text-sm text-white/50">%</span></p>
                 </div>
                 <div className="w-px h-8 bg-white/10"></div>
                 <div>
-                  <p className="text-white/40 text-xs uppercase mb-1">Last Update</p>
+                  <p className="text-white/40 text-xs uppercase mb-1">{translation.lastUpdate}</p>
                   <p className="text-xl font-medium text-white/80">{airSensor.latest.time}</p>
                 </div>
               </div>
@@ -128,11 +198,11 @@ export default function DashboardUI({ data }: { data: SensorApiResponse[] }) {
             {/* โซนกราฟจัดเต็ม (ขวา) */}
             <div className="lg:col-span-8 grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="bg-black/10 p-4 rounded-xl border border-white/5">
-                <p className="text-white/50 text-xs mb-2">Temperature Trend (°C)</p>
+                <p className="text-white/50 text-xs mb-2">{translation.tempTrend}</p>
                 <ModernAreaChart data={airSensor.chartData} dataKey="Temperature" color="#60a5fa" height={140} />
               </div>
               <div className="bg-black/10 p-4 rounded-xl border border-white/5">
-                <p className="text-white/50 text-xs mb-2">Humidity Trend (%)</p>
+                <p className="text-white/50 text-xs mb-2">{translation.humTrend}</p>
                 <ModernAreaChart data={airSensor.chartData} dataKey="Humidity" color="#22d3ee" height={140} />
               </div>
             </div>
@@ -144,7 +214,7 @@ export default function DashboardUI({ data }: { data: SensorApiResponse[] }) {
       {/* --- SOIL NODES GRID - ตอบโจทย์จอใหญ่ใส่กราฟเยอะๆ --- */}
       <div>
         <h3 className="text-lg font-medium text-white/70 mb-4 flex items-center gap-2">
-          <Activity className="w-5 h-5 text-indigo-400" /> Soil Monitoring Nodes
+          <Activity className="w-5 h-5 text-indigo-400" /> {translation.soilNodes}
         </h3>
         
         {/* 🌟 Grid 1 คอลัมน์(มือถือ) -> 2(แท็บเล็ต) -> 3(จอคอม) -> 4(จอ Wide) */}
@@ -159,7 +229,7 @@ export default function DashboardUI({ data }: { data: SensorApiResponse[] }) {
                   </div>
                   <div>
                     <h4 className="font-bold text-lg tracking-wide">{sensor.displayId}</h4>
-                    <p className="text-xs text-white/40">{sensor.type === "PH" ? "Soil pH Level" : "Soil Temp & Hum"}</p>
+                    <p className="text-xs text-white/40">{sensor.type === "PH" ? translation.phSensor : translation.thSensor}</p>
                   </div>
                 </div>
               </div>
@@ -171,7 +241,7 @@ export default function DashboardUI({ data }: { data: SensorApiResponse[] }) {
                   // กราฟเดี่ยวสำหรับ PH
                   <div className="bg-black/20 p-3 rounded-xl border border-white/5">
                     <div className="flex justify-between items-end mb-2">
-                      <span className="text-white/40 text-xs">pH Value</span>
+                      <span className="text-white/40 text-xs">{translation.phSensor}</span>
                       <span className="text-xl font-bold text-emerald-400">{sensor.latest.ph}</span>
                     </div>
                     <ModernAreaChart data={sensor.chartData} dataKey="PH" color="#34d399" height={70} hideXAxis />
@@ -181,14 +251,14 @@ export default function DashboardUI({ data }: { data: SensorApiResponse[] }) {
                   <>
                     <div className="bg-black/20 p-3 rounded-xl border border-white/5">
                       <div className="flex justify-between items-end mb-1">
-                        <span className="text-white/40 text-xs">Temp (°C)</span>
+                        <span className="text-white/40 text-xs">{translation.tempTrend}</span>
                         <span className="text-lg font-bold text-amber-400">{sensor.latest.temp}</span>
                       </div>
                       <ModernAreaChart data={sensor.chartData} dataKey="Temperature" color="#fbbf24" height={50} hideXAxis />
                     </div>
                     <div className="bg-black/20 p-3 rounded-xl border border-white/5">
                       <div className="flex justify-between items-end mb-1">
-                        <span className="text-white/40 text-xs">Hum (%)</span>
+                        <span className="text-white/40 text-xs">{translation.humTrend}</span>
                         <span className="text-lg font-bold text-cyan-400">{sensor.latest.humidity}</span>
                       </div>
                       <ModernAreaChart data={sensor.chartData} dataKey="Humidity" color="#22d3ee" height={50} hideXAxis />
