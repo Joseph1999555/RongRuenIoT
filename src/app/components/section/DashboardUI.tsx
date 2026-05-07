@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useMemo } from "react";
-import CustomLineChart, { LineConfig } from "../ui/LineChart";
+import { CloudRain, Droplets, ThermometerSun, Wind, Sprout, Activity } from "lucide-react";
+import ModernAreaChart, { GlassCard } from "../ui/ModernAreaChart";
 
 interface SensorApiResponse {
   "Time Stamp": string;
@@ -13,150 +14,192 @@ interface SensorApiResponse {
   Humidity?: number;
 }
 
+interface ProcessedSensor {
+  displayId: string;
+  type: string;
+  latest: { temp: string; humidity: string; ph: string; time: string };
+  chartData: any[];
+}
+
 export default function DashboardUI({ data }: { data: SensorApiResponse[] }) {
   
-  console.log("Raw API Data:", data);
-  
-  const { sensorsData, latestAir } = useMemo(() => {
-    if (!data || data.length === 0) {
-      return { sensorsData: [], latestAir: { temp: "-", humidity: "-" } };
-    }
+  // 1. ประมวลผลข้อมูล (จัดกลุ่มและเรียงเวลา)
+  const { sensorsData, airSensor } = useMemo(() => {
+    if (!data || data.length === 0) return { sensorsData: [], airSensor: null };
 
-    //  เปลี่ยน Key จาก number เป็น string เพื่อรองรับ "A11", "B11"
-    const sensorGroups: Record<string, { displayId: string; type: string; dataMap: Record<string, any> }> = {};
-    let lastAirTemp = "-";
-    let lastAirHum = "-";
+    const sensorGroups: Record<string, ProcessedSensor> = {};
+    let mainAirSensor: ProcessedSensor | null = null;
 
     data.forEach((item) => {
       const sid = item.SensorId;
-      const sys = item.System || "?";
-      const displayId = `${sys}${sid}`; 
-      
+      const sys = item.System || "SYS";
+      const displayId = `${sys}-${sid}`;
       const sType = item.Type || (sid === 15 ? "AIR" : sid >= 13 ? "PH" : "TH");
 
-      if (sType === "AIR") {
-        if (item.Temperature !== undefined) lastAirTemp = `${item.Temperature}`;
-        if (item.Humidity !== undefined) lastAirHum = `${item.Humidity}`;
-      }
-
-      //  ใช้ displayId ในการแยกกล่องเซนเซอร์
       if (!sensorGroups[displayId]) {
-        sensorGroups[displayId] = { displayId: displayId, type: sType, dataMap: {} };
-      }
-
-      const date = new Date(item["Time Stamp"]);
-      const dateString = date.toLocaleDateString("th-TH", { day: "2-digit", month: "2-digit" });
-      const timeString = date.toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" });
-      const dateTimeKey = `${dateString} ${timeString}`;
-
-      if (!sensorGroups[displayId].dataMap[dateTimeKey]) {
-        sensorGroups[displayId].dataMap[dateTimeKey] = {
-          fullTime: dateTimeKey,
-          timestamp: date.getTime(),
+        sensorGroups[displayId] = {
+          displayId, type: sType,
+          latest: { temp: "-", humidity: "-", ph: "-", time: "-" },
+          chartData: [],
         };
       }
 
-      if (item.Temperature !== undefined) sensorGroups[displayId].dataMap[dateTimeKey].Temperature = item.Temperature;
-      if (item.Humidity !== undefined) sensorGroups[displayId].dataMap[dateTimeKey].Humidity = item.Humidity;
-      if (item.PH !== undefined) sensorGroups[displayId].dataMap[dateTimeKey].PH = item.PH;
-    });
+      const date = new Date(item["Time Stamp"]);
+      const timeOnly = date.toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" });
+      const timestamp = date.getTime();
 
-    const processedSensors = Object.values(sensorGroups).map((sensor) => {
-      const sortedData = Object.values(sensor.dataMap).sort((a: any, b: any) => a.timestamp - b.timestamp);
-      return {
-        displayId: sensor.displayId, //  ส่ง displayId ออกไปให้ UI วาด
-        type: sensor.type,
-        chartData: sortedData,
+      const dataPoint = { timeOnly, timestamp, Temperature: item.Temperature, Humidity: item.Humidity, PH: item.PH };
+      
+      // อัปเดตค่าล่าสุด
+      sensorGroups[displayId].latest = {
+        temp: item.Temperature !== undefined ? String(item.Temperature) : sensorGroups[displayId].latest.temp,
+        humidity: item.Humidity !== undefined ? String(item.Humidity) : sensorGroups[displayId].latest.humidity,
+        ph: item.PH !== undefined ? String(item.PH) : sensorGroups[displayId].latest.ph,
+        time: timeOnly
       };
+
+      sensorGroups[displayId].chartData.push(dataPoint);
     });
 
-    //  เรียงลำดับตัวอักษร เช่น A11 -> A12 -> B11
-    processedSensors.sort((a, b) => a.displayId.localeCompare(b.displayId));
+    const processed = Object.values(sensorGroups).map(sensor => {
+      sensor.chartData.sort((a, b) => a.timestamp - b.timestamp);
+      return sensor;
+    });
 
-    return { 
-      sensorsData: processedSensors, 
-      latestAir: { temp: lastAirTemp, humidity: lastAirHum } 
-    };
+    mainAirSensor = processed.find(s => s.type === "AIR") || null;
+    const otherSensors = processed.filter(s => s.type !== "AIR").sort((a, b) => a.displayId.localeCompare(b.displayId));
+
+    return { sensorsData: otherSensors, airSensor: mainAirSensor };
   }, [data]);
 
-  if (!data || data.length === 0) return <div className="p-4 md:p-6 text-gray-500 font-medium">กำลังรอข้อมูล...</div>;
-
   return (
-    <div className="p-4 md:p-6 lg:p-8 bg-gray-50 min-h-screen">
-      <h1 className="text-xl md:text-2xl lg:text-3xl font-bold mb-6 text-gray-800">IoT Smart Farm Dashboard</h1>
-
-      {/* --- ส่วนที่ 1: Cards แสดงค่าสภาพอากาศล่าสุด --- */}
-      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 mb-6 md:mb-8">
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm border-l-4 border-l-orange-500 p-4 md:p-6">
-          <span className="text-xs md:text-sm font-medium text-gray-500 mb-1 md:mb-2 block">อุณหภูมิอากาศ (Air Temp)</span>
-          <div className="text-2xl md:text-3xl font-bold text-gray-900">
-            {latestAir.temp !== "-" ? `${latestAir.temp} °C` : "-"}
-          </div>
+    // 🌟 ใช้ min-h-screen และ w-full เพื่อขยายเต็มจอ
+    <div className="min-h-screen w-full bg-gradient-to-br from-[#020617] via-[#0f172a] to-[#020617] text-white p-4 md:p-6 lg:p-8 font-sans overflow-x-hidden">
+      
+      {/* --- HEADER --- */}
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+        <div>
+          <h1 className="text-2xl md:text-3xl font-light tracking-wide text-white/90">
+            Control<span className="font-bold text-blue-400">Center</span>
+          </h1>
+          <p className="text-white/40 text-sm mt-1">Smart Farm Global Monitoring System</p>
         </div>
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm border-l-4 border-l-blue-500 p-4 md:p-6">
-          <span className="text-xs md:text-sm font-medium text-gray-500 mb-1 md:mb-2 block">ความชื้นสัมพัทธ์ (Air Hum)</span>
-          <div className="text-2xl md:text-3xl font-bold text-gray-900">
-            {latestAir.humidity !== "-" ? `${latestAir.humidity} %` : "-"}
-          </div>
+        <div className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 px-4 py-2 rounded-full">
+          <span className="relative flex h-2.5 w-2.5">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+          </span>
+          <span className="text-xs font-medium text-emerald-400 tracking-wider">LIVE SYNC</span>
         </div>
-      </div>
+      </header>
 
-      {/* --- ส่วนที่ 2: วนลูปสร้างกราฟตาม Sensor ID --- */}
-      <div className="space-y-6 md:space-y-8">
-        {sensorsData.map((sensor) => (
-          // ใช้ displayId เป็น Key 
-          <div key={sensor.displayId} className="bg-white p-4 md:p-6 rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+      {/* --- HERO SECTION (AIR SENSOR) - จัดเต็มแนวนอน --- */}
+      {airSensor && (
+        <GlassCard className="mb-8 relative overflow-hidden group">
+          {/* แสง Background เรืองรอง */}
+          <div className="absolute -top-40 -right-40 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl" />
+          
+          <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
             
-            <div className="mb-4 md:mb-6 pb-4 border-b border-gray-100">
-              <h2 className="text-lg md:text-xl font-bold text-gray-800 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
-                <span>Sensor: {sensor.displayId}</span>
-                <span className="text-xs md:text-sm font-normal text-gray-600 bg-gray-100 px-3 py-1 rounded-full w-fit">
-                  {sensor.type === "AIR" ? "เซนเซอร์สภาพอากาศ" : sensor.type === "TH" ? "เซนเซอร์ดิน (ความชื้น/อุณหภูมิ)" : "เซนเซอร์ pH ดิน"}
-                </span>
+            {/* โซนตัวเลขหลัก (ซ้าย) */}
+            <div className="lg:col-span-4">
+              <h2 className="text-white/50 text-sm font-medium mb-4 uppercase tracking-wider flex items-center gap-2">
+                <CloudRain className="w-4 h-4" /> Atmosphere (Node {airSensor.displayId})
               </h2>
+              <div className="flex items-start gap-4">
+                <span className="text-7xl xl:text-8xl font-extralight tracking-tighter">{airSensor.latest.temp}</span>
+                <div className="mt-2 xl:mt-4">
+                  <span className="text-2xl xl:text-4xl font-light text-white/50">°C</span>
+                </div>
+              </div>
+              <div className="flex items-center gap-6 mt-6 bg-black/20 p-4 rounded-xl border border-white/5 w-fit">
+                <div>
+                  <p className="text-white/40 text-xs uppercase mb-1">Humidity</p>
+                  <p className="text-xl font-medium">{airSensor.latest.humidity} <span className="text-sm text-white/50">%</span></p>
+                </div>
+                <div className="w-px h-8 bg-white/10"></div>
+                <div>
+                  <p className="text-white/40 text-xs uppercase mb-1">Last Update</p>
+                  <p className="text-xl font-medium text-white/80">{airSensor.latest.time}</p>
+                </div>
+              </div>
             </div>
 
-            {(sensor.type === "TH" || sensor.type === "AIR") && (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 lg:gap-8">
-                <div className="bg-gray-50/50 p-2 md:p-4 rounded-lg border border-gray-50 w-full overflow-hidden">
-                  <h3 className="text-sm md:text-md font-semibold text-gray-700 mb-2 md:mb-4 text-center">อุณหภูมิ (°C)</h3>
-                  <CustomLineChart
-                    data={sensor.chartData}
-                    xAxisKey="fullTime"
-                    height={250} 
-                    lines={[{ dataKey: "Temperature", name: "อุณหภูมิ", color: "#ef4444" }]}
-                    formatXAxis={(value) => (typeof value === "string" ? value.split(" ")[1] : value)}
-                  />
-                </div>
-
-                <div className="bg-gray-50/50 p-2 md:p-4 rounded-lg border border-gray-50 w-full overflow-hidden">
-                  <h3 className="text-sm md:text-md font-semibold text-gray-700 mb-2 md:mb-4 text-center">ความชื้น (%)</h3>
-                  <CustomLineChart
-                    data={sensor.chartData}
-                    xAxisKey="fullTime"
-                    height={250}
-                    lines={[{ dataKey: "Humidity", name: "ความชื้น", color: "#3b82f6" }]}
-                    formatXAxis={(value) => (typeof value === "string" ? value.split(" ")[1] : value)}
-                  />
-                </div>
+            {/* โซนกราฟจัดเต็ม (ขวา) */}
+            <div className="lg:col-span-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="bg-black/10 p-4 rounded-xl border border-white/5">
+                <p className="text-white/50 text-xs mb-2">Temperature Trend (°C)</p>
+                <ModernAreaChart data={airSensor.chartData} dataKey="Temperature" color="#60a5fa" height={140} />
               </div>
-            )}
-
-            {sensor.type === "PH" && (
-              <div className="bg-gray-50/50 p-2 md:p-4 rounded-lg border border-gray-50 w-full md:w-3/4 lg:w-1/2 mx-auto overflow-hidden">
-                <h3 className="text-sm md:text-md font-semibold text-gray-700 mb-2 md:mb-4 text-center">ระดับค่า pH</h3>
-                <CustomLineChart
-                  data={sensor.chartData}
-                  xAxisKey="fullTime"
-                  height={250}
-                  lines={[{ dataKey: "PH", name: "ระดับ pH", color: "#10b981" }]}
-                  formatXAxis={(value) => (typeof value === "string" ? value.split(" ")[1] : value)}
-                />
+              <div className="bg-black/10 p-4 rounded-xl border border-white/5">
+                <p className="text-white/50 text-xs mb-2">Humidity Trend (%)</p>
+                <ModernAreaChart data={airSensor.chartData} dataKey="Humidity" color="#22d3ee" height={140} />
               </div>
-            )}
+            </div>
 
           </div>
-        ))}
+        </GlassCard>
+      )}
+
+      {/* --- SOIL NODES GRID - ตอบโจทย์จอใหญ่ใส่กราฟเยอะๆ --- */}
+      <div>
+        <h3 className="text-lg font-medium text-white/70 mb-4 flex items-center gap-2">
+          <Activity className="w-5 h-5 text-indigo-400" /> Soil Monitoring Nodes
+        </h3>
+        
+        {/* 🌟 Grid 1 คอลัมน์(มือถือ) -> 2(แท็บเล็ต) -> 3(จอคอม) -> 4(จอ Wide) */}
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6">
+          {sensorsData.map((sensor) => (
+            <GlassCard key={sensor.displayId} className="flex flex-col h-full hover:bg-white/10 transition duration-300">
+              
+              <div className="flex justify-between items-start mb-6">
+                <div className="flex items-center gap-3">
+                  <div className={`p-2.5 rounded-xl ${sensor.type === "PH" ? "bg-emerald-500/20 text-emerald-400" : "bg-amber-500/20 text-amber-400"}`}>
+                    {sensor.type === "PH" ? <Sprout className="w-5 h-5" /> : <ThermometerSun className="w-5 h-5" />}
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-lg tracking-wide">{sensor.displayId}</h4>
+                    <p className="text-xs text-white/40">{sensor.type === "PH" ? "Soil pH Level" : "Soil Temp & Hum"}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* ข้อมูลล่าสุด & กราฟย่อยๆ ดันลงไปชิดด้านล่าง */}
+              <div className="mt-auto space-y-4">
+                
+                {sensor.type === "PH" ? (
+                  // กราฟเดี่ยวสำหรับ PH
+                  <div className="bg-black/20 p-3 rounded-xl border border-white/5">
+                    <div className="flex justify-between items-end mb-2">
+                      <span className="text-white/40 text-xs">pH Value</span>
+                      <span className="text-xl font-bold text-emerald-400">{sensor.latest.ph}</span>
+                    </div>
+                    <ModernAreaChart data={sensor.chartData} dataKey="PH" color="#34d399" height={70} hideXAxis />
+                  </div>
+                ) : (
+                  // กราฟคู่สำหรับ TH (บน-ล่าง)
+                  <>
+                    <div className="bg-black/20 p-3 rounded-xl border border-white/5">
+                      <div className="flex justify-between items-end mb-1">
+                        <span className="text-white/40 text-xs">Temp (°C)</span>
+                        <span className="text-lg font-bold text-amber-400">{sensor.latest.temp}</span>
+                      </div>
+                      <ModernAreaChart data={sensor.chartData} dataKey="Temperature" color="#fbbf24" height={50} hideXAxis />
+                    </div>
+                    <div className="bg-black/20 p-3 rounded-xl border border-white/5">
+                      <div className="flex justify-between items-end mb-1">
+                        <span className="text-white/40 text-xs">Hum (%)</span>
+                        <span className="text-lg font-bold text-cyan-400">{sensor.latest.humidity}</span>
+                      </div>
+                      <ModernAreaChart data={sensor.chartData} dataKey="Humidity" color="#22d3ee" height={50} hideXAxis />
+                    </div>
+                  </>
+                )}
+
+              </div>
+            </GlassCard>
+          ))}
+        </div>
       </div>
 
     </div>
