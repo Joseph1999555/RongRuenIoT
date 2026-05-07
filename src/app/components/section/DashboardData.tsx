@@ -52,17 +52,8 @@ export default function DashboardData() {
 
   // --- ข้อมูลพร้อม ส่งให้ UI ไปวาดกราฟ ---
   return (
-    <div className="relative">
-      {/* 🔴 ป้ายบอกสถานะ Real-time แปะไว้มุมขวาบนของ Dashboard */}
-      <div className="absolute top-6 right-6 md:top-8 md:right-8 z-10 flex items-center gap-2 bg-white px-3 py-1.5 rounded-full shadow-sm border border-gray-100">
-        <span className="relative flex h-3 w-3">
-          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-          <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
-        </span>
-        <span className="text-xs font-medium text-gray-500">Live Sync</span>
-      </div>
-
+  
       <DashboardUI data={data} />
-    </div>
+
   );
 }
