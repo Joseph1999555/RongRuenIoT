@@ -36,7 +36,7 @@ export async function fetchFromSheet<T>({
                     ...customParams,
                     _t: Date.now() // เจาะ Cache ด้วยเวลาปัจจุบัน (Cache Buster)
                 },
-                timeout: 10000 
+                timeout: 30000 
             }
         );
         
