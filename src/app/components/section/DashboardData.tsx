@@ -23,8 +23,12 @@ export default function DashboardData() {
   // โยน API_URL ที่ประกอบเสร็จแล้วให้ SWR ทำงาน
   const { data, error, isLoading } = useSWR(
     ['dashboard-data', queryObj], 
-    ([_, params]) => queryString(params), // 👈 เรียกฟังก์ชันของคุณตรงนี้
-    { refreshInterval: 60000 }
+    ([_, params]) => queryString(params), 
+    { refreshInterval: 60000,
+        errorRetryCount: 3,
+        errorRetryInterval: 5000,
+        keepPreviousData: true,
+     }
   );
 
   // --- จัดการสถานะ Error ---
