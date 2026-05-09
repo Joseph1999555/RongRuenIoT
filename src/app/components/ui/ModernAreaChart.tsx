@@ -9,7 +9,7 @@ interface ModernAreaChartProps {
   color: string;
   height?: number;
   hideXAxis?: boolean;
-  isDark?: boolean; // 🌟 เพิ่ม Props สำหรับเช็ค Theme
+  isDark?: boolean; //  เพิ่ม Props สำหรับเช็ค Theme
 }
 
 export default function ModernAreaChart({ 
@@ -18,14 +18,14 @@ export default function ModernAreaChart({
   color, 
   height = 150, 
   hideXAxis = false,
-  isDark = true // 🌟 รับค่า Default เป็น Dark
+  isDark = true //  รับค่า Default เป็น Dark
 }: ModernAreaChartProps) {
   const gradientId = `glow_${dataKey}_${Math.random().toString(36).substr(2, 9)}`;
 
   return (
     <div style={{ width: "100%", height, minHeight: height }}>
       <ResponsiveContainer width="100%" height="100%">
-        <AreaChart data={data} margin={{ top: 5, right: 0, left: 0, bottom: 0 }}>
+        <AreaChart data={data} margin={{ top: 5, right: 0, left: 0, bottom: 0 }} >
           <defs>
             <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
               <stop offset="5%" stopColor={color} stopOpacity={0.4} />
@@ -36,18 +36,19 @@ export default function ModernAreaChart({
           {!hideXAxis && (
             <XAxis 
               dataKey="timeOnly" 
-              // 🌟 เปลี่ยนสีตัวเลขแกน X ตาม Theme
+              //  เปลี่ยนสีตัวเลขแกน X ตาม Theme
               tick={{ fill: isDark ? "rgba(255,255,255,0.4)" : "rgba(15, 23, 42, 0.4)", fontSize: 10 }} 
               tickLine={false} 
               axisLine={false}
               minTickGap={15}
+              interval="preserveStartEnd"
             />
           )}
           
           <YAxis hide domain={['dataMin - 2', 'dataMax + 2']} />
           
           <Tooltip 
-            // 🌟 เปลี่ยนสีกล่อง Tooltip เวลาเอาเมาส์ชี้ตาม Theme
+            //  เปลี่ยนสีกล่อง Tooltip เวลาเอาเมาส์ชี้ตาม Theme
             contentStyle={{ 
               backgroundColor: isDark ? "rgba(15, 23, 42, 0.9)" : "rgba(255, 255, 255, 0.9)", 
               border: isDark ? "1px solid rgba(255,255,255,0.1)" : "1px solid rgba(0,0,0,0.1)", 

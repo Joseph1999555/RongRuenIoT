@@ -14,11 +14,8 @@ export default function DashboardData() {
   const queryObj = {
     action: 'read',
     sheet: 'all',
-    limit: 10,
+    limit: 16,
   };
-
-  const baseUrl = "https://script.google.com/macros/s/AKfycbynj8rEVT7HX2x920JbZSi_rVz7qPqlEnufCDSNsPxPFYKLndczSRoaPgVQ1cUVRSUB/exec";
-  const paramsStr = queryString(queryObj);
 
   // โยน API_URL ที่ประกอบเสร็จแล้วให้ SWR ทำงาน
   const { data, error, isLoading } = useSWR(

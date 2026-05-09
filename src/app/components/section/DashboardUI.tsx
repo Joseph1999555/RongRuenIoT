@@ -54,8 +54,19 @@ export default function DashboardUI({ data }: { data: SensorApiResponse[] }) {
       sensorGroups[displayId].chartData.push({ timeOnly, timestamp, Temperature: item.Temperature, Humidity: item.Humidity, PH: item.PH });
     });
 
+    // นำโค้ดนี้ไปวางแทนที่ const processed = ... ชุดเดิมใน useMemo ครับ
     const processed = Object.values(sensorGroups).map(sensor => {
+
+      //  1. เรียงข้อมูลจาก "เวลาใหม่สุดไปเก่าสุด" ก่อน เพื่อให้พร้อมตัด
+      sensor.chartData.sort((a: any, b: any) => b.timestamp - a.timestamp);
+
+      //  2. หั่นข้อมูลตามที่ต้องการ (AIR เอา 10 จุด, ที่เหลือเอา 4 จุด)
+      const limitCount = sensor.type === "AIR" ? 10 : 4;
+      sensor.chartData = sensor.chartData.slice(0, limitCount);
+
+      //  3. เรียงกลับมาเป็น "เวลาเก่าไปใหม่" เพื่อให้กราฟวาดจากซ้ายไปขวาได้ถูกต้อง
       sensor.chartData.sort((a: any, b: any) => a.timestamp - b.timestamp);
+
       return sensor;
     });
 
@@ -109,7 +120,7 @@ export default function DashboardUI({ data }: { data: SensorApiResponse[] }) {
                 className="w-full flex items-center justify-between px-4 py-3 rounded-2xl hover:bg-slate-100 dark:hover:bg-white/10 transition-all duration-500"
               >
                 <div className="flex items-center gap-3">
-                  
+
                   {/*  2. ICON MORPHING: วางซ้อนกันแล้วสั่งหมุน/เฟดเข้าออก อาการกระตุกจะหายขาดแถมดูหรูขึ้นมาก */}
                   <div className="relative w-4 h-4 flex items-center justify-center">
                     <Moon className={`absolute transition-all duration-500 text-blue-500 ${isDark ? 'opacity-100 rotate-0 scale-100' : 'opacity-0 -rotate-90 scale-50'}`} />
@@ -121,7 +132,7 @@ export default function DashboardUI({ data }: { data: SensorApiResponse[] }) {
                     {translation.theme}
                   </span>
                 </div>
-                
+
                 <span className="w-10 text-right text-[10px] font-bold uppercase text-slate-400 dark:text-slate-500 transition-colors duration-500">
                   {currentTheme}
                 </span>
@@ -221,33 +232,30 @@ export default function DashboardUI({ data }: { data: SensorApiResponse[] }) {
               <div className="mt-auto pt-4 flex-1 flex flex-col">
 
                 {sensor.type === "PH" ? (
-                  //  เพิ่ม flex-1 ให้กล่องนี้ยืดเต็มความสูง
                   <div className="bg-slate-100/50 dark:bg-black/20 p-4 rounded-xl border border-slate-200 dark:border-white/5 flex-1 flex flex-col">
                     <div className="flex justify-between items-end mb-2">
                       <span className="text-slate-500 dark:text-slate-400 font-medium text-sm">{translation.phSensor}</span>
                       <span className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{sensor.latest.ph}</span>
                     </div>
-                    {/*  ดันกราฟลงข้างล่างสุด และเพิ่มความสูงกราฟเป็น 130 เพื่อให้สมดุลกับการ์ดอื่น */}
                     <div className="mt-auto w-full">
-                      <ModernAreaChart isDark={isDark} data={sensor.chartData} dataKey="PH" color="#34d399" height={130} hideXAxis />
+                      <ModernAreaChart isDark={isDark} data={sensor.chartData} dataKey="PH" color="#34d399" height={130} />
                     </div>
                   </div>
                 ) : (
-                  //  ส่วนของ TH มี 2 กราฟอยู่แล้ว ก็ให้จัดชิดล่าง (justify-end) ปกติ
                   <div className="flex flex-col justify-end flex-1 space-y-4">
                     <div className="bg-slate-100/50 dark:bg-black/20 p-3 rounded-xl border border-slate-200 dark:border-white/5">
                       <div className="flex justify-between items-end mb-1">
                         <span className="text-slate-500 dark:text-slate-400 font-medium text-xs">{translation.tempTrend}</span>
                         <span className="text-lg font-bold text-amber-500 dark:text-amber-400">{sensor.latest.temp}</span>
                       </div>
-                      <ModernAreaChart isDark={isDark} data={sensor.chartData} dataKey="Temperature" color="#fbbf24" height={50} hideXAxis />
+                      <ModernAreaChart isDark={isDark} data={sensor.chartData} dataKey="Temperature" color="#fbbf24" height={75} />
                     </div>
                     <div className="bg-slate-100/50 dark:bg-black/20 p-3 rounded-xl border border-slate-200 dark:border-white/5">
                       <div className="flex justify-between items-end mb-1">
                         <div className="text-slate-500 dark:text-slate-400 font-medium text-xs">{translation.humTrend}</div>
                         <span className="text-lg font-bold text-cyan-500 dark:text-cyan-400">{sensor.latest.humidity}</span>
                       </div>
-                      <ModernAreaChart isDark={isDark} data={sensor.chartData} dataKey="Humidity" color="#22d3ee" height={50} hideXAxis />
+                      <ModernAreaChart isDark={isDark} data={sensor.chartData} dataKey="Humidity" color="#22d3ee" height={75} />
                     </div>
                   </div>
                 )}
