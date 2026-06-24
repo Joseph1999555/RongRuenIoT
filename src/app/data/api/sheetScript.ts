@@ -27,7 +27,7 @@ export async function fetchFromSheet<T>({
         }
 
         const response = await axios.get<T>(
-            `https://script.google.com/macros/s/AKfycbynj8rEVT7HX2x920JbZSi_rVz7qPqlEnufCDSNsPxPFYKLndczSRoaPgVQ1cUVRSUB/exec`,
+            `https://script.google.com/macros/s/AKfycby1GKJ3vWPFS8BjV8U6mxNNXmj5ZAdNTQBt4QMDAX7k6YfsPKp665sczrpBqQNB1sKE/exec`,
             {
                 params: {
                     action: action || undefined,
