@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useTheme } from "next-themes";
 import {
   CloudRain, Sprout, Activity, ThermometerSun,
-  Settings, Moon, Sun, Globe,
+  Settings, Moon, Sun, Globe, Clock,
 } from "lucide-react";
 import ModernAreaChart, { GlassCard } from "../ui/ModernAreaChart";
 import { translations } from "@/app/data/mock/language";
@@ -26,7 +26,15 @@ interface SensorGroup {
   displayId: string;
   type: string;
   latest: { temp: string; humidity: string; ph: string; time: string };
-  chartData: { timeOnly: string; timestamp: number; Temperature?: number; Humidity?: number; PH?: number }[];
+  chartData: {
+    timeOnly: string;
+    dateTimeLabel: string;
+    timestamp: number;
+    isStale: boolean;
+    Temperature?: number | null;
+    Humidity?: number | null;
+    PH?: number | null;
+  }[];
 }
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
@@ -117,7 +125,7 @@ function StatPill({ label, value, unit }: { label: string; value: string; unit?:
         text-stone-400 dark:text-slate-400">
         {label}
       </p>
-      <p className="text-xl sm:text-2xl font-bold leading-none
+      <p className="text-lg sm:text-xl md:text-2xl font-bold leading-tight break-words
         text-stone-800 dark:text-white">
         {value}
         {unit && <span className="text-sm font-normal ml-1 text-stone-400 dark:text-slate-500">{unit}</span>}
@@ -223,23 +231,52 @@ export default function DashboardUI({ data }: { data: SensorApiResponse[] }) {
   const [mounted, setMounted] = useState(false);
   const [lang, setLang] = useState<"en" | "th">("en");
   const [showSettings, setShowSettings] = useState(false);
+  const [currentDateTime, setCurrentDateTime] = useState(new Date());
 
-  useEffect(() => setMounted(true), []);
+  useEffect(() => {
+    const mountedTimer = window.setTimeout(() => {
+      setMounted(true);
+    }, 0);
+
+    return () => window.clearTimeout(mountedTimer);
+  }, []);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setCurrentDateTime(new Date());
+    }, 1000);
+
+    return () => window.clearInterval(timer);
+  }, []);
 
   const currentTheme = theme === "system" ? systemTheme : theme;
   const isDark = currentTheme === "dark";
   const translation = translations[lang];
+  const formattedDateTime = currentDateTime.toLocaleString("en-US", {
+    timeZone: "Asia/Bangkok",
+    weekday: "short",
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
 
   const { weatherDesc } = useWeatherDisplay();
 
   // ── Data processing (logic unchanged) ──
-  const { sensorsData, airSensor } = useMemo<{
+  const { sensorsData, airSensor, latestDataTime } = useMemo<{
     sensorsData: SensorGroup[];
     airSensor: SensorGroup | null;
+    latestDataTime: string;
   }>(() => {
-    if (!data || data.length === 0) return { sensorsData: [], airSensor: null };
+    if (!data || data.length === 0) return { sensorsData: [], airSensor: null, latestDataTime: "-" };
 
     const groups: Record<string, SensorGroup> = {};
+    const staleBefore = currentDateTime.getTime() - 3 * 24 * 60 * 60 * 1000;
+    let newestTimestamp = 0;
+    let newestLabel = "-";
 
     data.forEach((item) => {
       const sid = item.SensorId;
@@ -257,18 +294,32 @@ export default function DashboardUI({ data }: { data: SensorApiResponse[] }) {
 
       const date = new Date(item["Time Stamp"]);
       const timeOnly = date.toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" });
+      const dateOnly = date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+      const dateTimeLabel = `${dateOnly} ${timeOnly}`;
       const timestamp = date.getTime();
+      const isStale = Number.isNaN(timestamp) || timestamp < staleBefore;
+      const displayTime = isStale ? `${dateTimeLabel} (old)` : timeOnly;
+
+      if (!Number.isNaN(timestamp) && timestamp > newestTimestamp) {
+        newestTimestamp = timestamp;
+        newestLabel = dateTimeLabel;
+      }
 
       groups[displayId].latest = {
-        temp: item.Temperature !== undefined ? String(item.Temperature) : groups[displayId].latest.temp,
-        humidity: item.Humidity !== undefined ? String(item.Humidity) : groups[displayId].latest.humidity,
-        ph: item.PH !== undefined ? String(item.PH) : groups[displayId].latest.ph,
-        time: timeOnly,
+        temp: item.Temperature !== undefined ? (isStale ? "NaN" : String(item.Temperature)) : groups[displayId].latest.temp,
+        humidity: item.Humidity !== undefined ? (isStale ? "NaN" : String(item.Humidity)) : groups[displayId].latest.humidity,
+        ph: item.PH !== undefined ? (isStale ? "NaN" : String(item.PH)) : groups[displayId].latest.ph,
+        time: displayTime,
       };
 
       groups[displayId].chartData.push({
-        timeOnly, timestamp,
-        Temperature: item.Temperature, Humidity: item.Humidity, PH: item.PH,
+        timeOnly,
+        dateTimeLabel,
+        timestamp,
+        isStale,
+        Temperature: isStale && item.Temperature !== undefined ? null : item.Temperature,
+        Humidity: isStale && item.Humidity !== undefined ? null : item.Humidity,
+        PH: isStale && item.PH !== undefined ? null : item.PH,
       });
     });
 
@@ -284,8 +335,8 @@ export default function DashboardUI({ data }: { data: SensorApiResponse[] }) {
       .filter((s) => s.type !== "AIR")
       .sort((a, b) => a.displayId.localeCompare(b.displayId));
 
-    return { sensorsData, airSensor };
-  }, [data]);
+    return { sensorsData, airSensor, latestDataTime: newestLabel };
+  }, [currentDateTime, data]);
 
   if (!mounted) return null;
 
@@ -324,6 +375,10 @@ export default function DashboardUI({ data }: { data: SensorApiResponse[] }) {
             </h1>
             <p className="mt-1 text-sm sm:text-base truncate text-stone-500 dark:text-slate-400">
               {translation.subtitle}
+            </p>
+            <p className="mt-2 flex items-center gap-2 text-xs sm:text-sm font-medium text-stone-400 dark:text-slate-500">
+              <Clock className="h-4 w-4 shrink-0 text-amber-600 dark:text-blue-400" />
+              <span>{formattedDateTime}</span>
             </p>
           </div>
 
@@ -399,7 +454,7 @@ export default function DashboardUI({ data }: { data: SensorApiResponse[] }) {
                   dark:bg-black/20 dark:border-white/5 dark:shadow-none">
                   <StatPill label={translation.humidity} value={airSensor.latest.humidity} unit="%" />
                   <div className="w-px h-8 shrink-0 bg-amber-200/60 dark:bg-white/10" />
-                  <StatPill label={translation.lastUpdate} value={airSensor.latest.time} />
+                  <StatPill label={translation.lastUpdate} value={latestDataTime} />
                 </div>
               </div>
 
