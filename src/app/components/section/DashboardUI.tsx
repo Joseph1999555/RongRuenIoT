@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useTheme } from "next-themes";
 import {
   CloudRain, Sprout, Activity, ThermometerSun,
-  Settings, Moon, Sun, Globe,
+  Settings, Moon, Sun, Globe, Clock,
 } from "lucide-react";
 import ModernAreaChart, { GlassCard } from "../ui/ModernAreaChart";
 import { translations } from "@/app/data/mock/language";
@@ -223,12 +223,37 @@ export default function DashboardUI({ data }: { data: SensorApiResponse[] }) {
   const [mounted, setMounted] = useState(false);
   const [lang, setLang] = useState<"en" | "th">("en");
   const [showSettings, setShowSettings] = useState(false);
+  const [currentDateTime, setCurrentDateTime] = useState(new Date());
 
-  useEffect(() => setMounted(true), []);
+  useEffect(() => {
+    const mountedTimer = window.setTimeout(() => {
+      setMounted(true);
+    }, 0);
+
+    return () => window.clearTimeout(mountedTimer);
+  }, []);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setCurrentDateTime(new Date());
+    }, 1000);
+
+    return () => window.clearInterval(timer);
+  }, []);
 
   const currentTheme = theme === "system" ? systemTheme : theme;
   const isDark = currentTheme === "dark";
   const translation = translations[lang];
+  const formattedDateTime = currentDateTime.toLocaleString("en-US", {
+    timeZone: "Asia/Bangkok",
+    weekday: "short",
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
 
   const { weatherDesc } = useWeatherDisplay();
 
@@ -324,6 +349,10 @@ export default function DashboardUI({ data }: { data: SensorApiResponse[] }) {
             </h1>
             <p className="mt-1 text-sm sm:text-base truncate text-stone-500 dark:text-slate-400">
               {translation.subtitle}
+            </p>
+            <p className="mt-2 flex items-center gap-2 text-xs sm:text-sm font-medium text-stone-400 dark:text-slate-500">
+              <Clock className="h-4 w-4 shrink-0 text-amber-600 dark:text-blue-400" />
+              <span>{formattedDateTime}</span>
             </p>
           </div>
 
