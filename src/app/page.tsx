@@ -1,10 +1,11 @@
-import Image from "next/image";
+import type { Metadata } from "next";
 import Dashboard from "./components/section/Dashboard";
-import { queryString } from "./utils/queryString";
 
-export default async function Home() {
+export const metadata: Metadata = {
+  title: "Smart Farm Dashboard",
+};
 
-
+export default function Home() {
   return (
       <Dashboard />
   );

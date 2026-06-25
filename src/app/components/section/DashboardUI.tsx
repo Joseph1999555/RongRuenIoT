@@ -12,6 +12,8 @@ import { useWeatherDisplay } from "../ui/Weather";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+type Translation = (typeof translations)["en"];
+
 interface SensorApiResponse {
   "Time Stamp": string;
   System?: string;
@@ -63,7 +65,7 @@ function SettingsDropdown({
   onToggleTheme, onToggleLang, onClose,
 }: {
   isDark: boolean; lang: "en" | "th"; currentTheme: string | undefined;
-  translation: any; onToggleTheme: () => void; onToggleLang: () => void; onClose: () => void;
+  translation: Translation; onToggleTheme: () => void; onToggleLang: () => void; onClose: () => void;
 }) {
   return (
     <div
@@ -137,7 +139,7 @@ function StatPill({ label, value, unit }: { label: string; value: string; unit?:
 function MiniChart({
   isDark, data, dataKey, color, label, value, valueColor, height = 75,
 }: {
-  isDark: boolean; data: any[]; dataKey: string; color: string;
+  isDark: boolean; data: SensorGroup["chartData"]; dataKey: string; color: string;
   label: string; value: string; valueColor: string; height?: number;
 }) {
   return (
@@ -156,7 +158,7 @@ function MiniChart({
 }
 
 function SensorCard({ sensor, isDark, translation }: {
-  sensor: SensorGroup; isDark: boolean; translation: any;
+  sensor: SensorGroup; isDark: boolean; translation: Translation;
 }) {
   const isPH = sensor.type === "PH";
 

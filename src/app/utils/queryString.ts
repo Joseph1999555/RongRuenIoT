@@ -1,13 +1,10 @@
 import { fetchFromSheet } from '@/app/data/api/sheetScript';
 import qs from 'qs';
 
-export async function queryString(queryObj: any ) {
+export type SheetQuery = Record<string, string | number | boolean | undefined>;
 
-    // แปลง Object เป็น Query String
-    const queryString = qs.stringify(queryObj, { encodeValuesOnly: true });
-
-    console.log('Generated Query String:', queryString);
-
-    const response = await fetchFromSheet<any>({query: queryString });
+export async function queryString<T = unknown>(queryObj: SheetQuery): Promise<T> {
+    const query = qs.stringify(queryObj, { encodeValuesOnly: true });
+    const response = await fetchFromSheet<T>({ query });
     return response;
 }
