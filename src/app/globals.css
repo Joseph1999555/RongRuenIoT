@@ -3,8 +3,18 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  color-scheme: light;
+  --background: #f6f8f5;
+  --foreground: #172016;
+  --surface: #ffffff;
+  --surface-muted: #eef4ed;
+  --surface-raised: #fbfdf9;
+  --border: #dce7dc;
+  --border-strong: #bed0c0;
+  --muted: #64746a;
+  --accent: #0f766e;
+  --accent-foreground: #ecfdf5;
+  --danger: #b42318;
 }
 
 @theme inline {
@@ -15,12 +25,35 @@
 }
 
 .dark {
-  --background: #020617; 
-  --foreground: #ededed;
+  color-scheme: dark;
+  --background: #0b1014;
+  --foreground: #edf6ef;
+  --surface: #111a20;
+  --surface-muted: #17232b;
+  --surface-raised: #142028;
+  --border: #26343d;
+  --border-strong: #40525f;
+  --muted: #9cafb5;
+  --accent: #2dd4bf;
+  --accent-foreground: #042f2e;
+  --danger: #f97066;
+}
+
+html {
+  min-height: 100%;
+  background: var(--background);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--accent) 26%, transparent);
 }

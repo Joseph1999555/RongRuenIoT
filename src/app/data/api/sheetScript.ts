@@ -5,7 +5,9 @@ interface ErrorResponse {
     error?: string;
 }
 
-// ใช้ดึงข้อมูลจาก Google Apps Script 
+const DEFAULT_SHEET_SCRIPT_URL =
+    "https://script.google.com/macros/s/AKfycby1GKJ3vWPFS8BjV8U6mxNNXmj5ZAdNTQBt4QMDAX7k6YfsPKp665sczrpBqQNB1sKE/exec";
+
 export async function fetchFromSheet<T>({
     action,
     sheet,
@@ -17,24 +19,25 @@ export async function fetchFromSheet<T>({
     sheet?: string;
     limit?: number;
 }): Promise<T> {
-    
+    const endpoint = process.env.SHEET_SCRIPT_URL ?? DEFAULT_SHEET_SCRIPT_URL;
+
     try {
-        // ใช้ URLSearchParams เพื่อช่วยจัดการเรื่องพารามิเตอร์แปลกๆ ที่อาจส่งมาจาก query
-        let customParams = {};
+        let customParams: Record<string, string> = {};
+
         if (query) {
             const searchParams = new URLSearchParams(query);
             customParams = Object.fromEntries(searchParams.entries());
         }
 
         const response = await axios.get<T>(
-            `https://script.google.com/macros/s/AKfycby1GKJ3vWPFS8BjV8U6mxNNXmj5ZAdNTQBt4QMDAX7k6YfsPKp665sczrpBqQNB1sKE/exec`,
+            endpoint,
             {
                 params: {
                     action: action || undefined,
                     sheet: sheet || undefined,
                     limit: limit || undefined,
                     ...customParams,
-                    _t: Date.now() // เจาะ Cache ด้วยเวลาปัจจุบัน (Cache Buster)
+                    _t: Date.now(),
                 },
                 timeout: 30000 
             }
@@ -61,12 +64,10 @@ export async function fetchFromSheet<T>({
             const serverMessage = data?.message || data?.error;
             console.error(`API Error ${status}:`, serverMessage || data);
             
-            // Throw user-friendly message
             const userMessage = serverMessage || getErrorMessage(status);
             throw new Error(userMessage);
         }
 
-        // Unknown Error
         console.error('Unexpected Error:', error);
         throw new Error('เกิดข้อผิดพลาดที่ไม่คาดคิด');
     }

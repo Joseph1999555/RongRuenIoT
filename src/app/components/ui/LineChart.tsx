@@ -18,13 +18,16 @@ export interface LineConfig {
   color: string;
 }
 
+type ChartDatum = Record<string, string | number | null | undefined>;
+type ChartLabel = string | number;
+
 interface CustomLineChartProps {
-  data: any[];
+  data: ChartDatum[];
   xAxisKey: string;
   lines: LineConfig[];
   height?: number | string;
-  formatXAxis?: (value: any) => string;
-  formatTooltipLabel?: (label: any) => string;
+  formatXAxis?: (value: ChartLabel) => string;
+  formatTooltipLabel?: (label: ChartLabel) => string;
 }
 
 export default function CustomLineChart({
@@ -32,8 +35,8 @@ export default function CustomLineChart({
   xAxisKey,
   lines,
   height = 300, // 🌟 ลด Default Height ลงมาให้เหมาะกับมือถือมากขึ้น (ในคอมก็ยังสวย)
-  formatXAxis = (val) => val,
-  formatTooltipLabel = (val) => val,
+  formatXAxis = (val) => String(val),
+  formatTooltipLabel = (val) => String(val),
 }: CustomLineChartProps) {
   
   if (!data || data.length === 0) return <div className="text-gray-500 text-sm">ไม่มีข้อมูลสำหรับแสดงกราฟ</div>;

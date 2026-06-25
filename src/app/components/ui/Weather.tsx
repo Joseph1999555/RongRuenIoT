@@ -1,39 +1,54 @@
 import { CloudRain, Cloud, Sun, CloudLightning } from "lucide-react";
 import useSWR from "swr";
 
-// ฟังก์ชันแมปปิ้งคำศัพท์สภาพอากาศเป็น Icon
+interface WeatherApiResponse {
+    weather?: { main?: string }[];
+    main?: {
+        temp_max?: number;
+        temp_min?: number;
+    };
+    message?: string;
+}
+
 export const filterWeather = (weatherMain: string) => {
     switch (weatherMain) {
         case "Clear":
-            return { icon: <Sun className="w-14 h-14 xl:w-16 xl:h-16 text-amber-500 drop-shadow-lg" />, text: "ท้องฟ้าแจ่มใส" };
+            return { icon: <Sun className="h-12 w-12 text-amber-500" />, text: "ท้องฟ้าแจ่มใส" };
         case "Clouds":
-            return { icon: <Cloud className="w-14 h-14 xl:w-16 xl:h-16 text-gray-400 drop-shadow-lg" />, text: "มีเมฆบางส่วน" };
+            return { icon: <Cloud className="h-12 w-12 text-slate-400" />, text: "มีเมฆบางส่วน" };
         case "Rain":
         case "Drizzle":
-            return { icon: <CloudRain className="w-14 h-14 xl:w-16 xl:h-16 text-blue-400 drop-shadow-lg" />, text: "ฝนตก" };
+            return { icon: <CloudRain className="h-12 w-12 text-sky-500" />, text: "ฝนตก" };
         case "Thunderstorm":
-            return { icon: <CloudLightning className="w-14 h-14 xl:w-16 xl:h-16 text-purple-500 drop-shadow-lg" />, text: "พายุฝนฟ้าคะนอง" };
+            return { icon: <CloudLightning className="h-12 w-12 text-violet-500" />, text: "พายุฝนฟ้าคะนอง" };
         default:
-            return { icon: <Cloud className="w-14 h-14 xl:w-16 xl:h-16 text-slate-400 drop-shadow-lg" />, text: "กำลังวิเคราะห์สภาพอากาศ..." };
+            return { icon: <Cloud className="h-12 w-12 text-slate-400" />, text: "กำลังวิเคราะห์สภาพอากาศ..." };
     }
 };
 
-// Fetcher สำหรับดึง OpenWeatherMap
-export const fetchWeather = (url: string) => fetch(url).then((res) => res.json());
+export const fetchWeather = async (url: string): Promise<WeatherApiResponse> => {
+    const response = await fetch(url);
+
+    if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        throw new Error(payload?.message ?? "Unable to load weather data");
+    }
+
+    return response.json();
+};
 
 export const useWeatherDisplay = () => {
-    const LAT = "13.735269828319813"; 
-    const LON = "100.31390200299732";
-    const API_KEY = "c14637b5635525e930fb8f2da958317a";
-    const WEATHER_URL = `https://api.openweathermap.org/data/2.5/weather?lat=${LAT}&lon=${LON}&appid=${API_KEY}&units=metric`;
-
-    const { data: weatherData, error, isLoading } = useSWR(WEATHER_URL, fetchWeather, { refreshInterval: 600000 });
+    const { data: weatherData, error, isLoading } = useSWR("/api/weather", fetchWeather, {
+        dedupingInterval: 60000,
+        errorRetryCount: 10000,
+        refreshInterval: 600000,
+    });
 
     const weatherStatus = weatherData?.weather?.[0]?.main || "Unknown";
     const weatherDesc = filterWeather(weatherStatus);
     const tempMax = weatherData?.main?.temp_max ? Math.round(weatherData.main.temp_max) : "-";
     const tempMin = weatherData?.main?.temp_min ? Math.round(weatherData.main.temp_min) : "-";
-
+    
     return {
         weatherDesc,
         tempMax,
