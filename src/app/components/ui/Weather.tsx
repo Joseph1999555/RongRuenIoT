@@ -40,8 +40,10 @@ export const fetchWeather = async (url: string): Promise<WeatherApiResponse> => 
 export const useWeatherDisplay = () => {
     const { data: weatherData, error, isLoading } = useSWR("/api/weather", fetchWeather, {
         dedupingInterval: 60000,
-        errorRetryCount: 10000,
+        errorRetryCount: 3,
+        errorRetryInterval: 30000,
         refreshInterval: 600000,
+        revalidateOnFocus: false,
     });
 
     const weatherStatus = weatherData?.weather?.[0]?.main || "Unknown";

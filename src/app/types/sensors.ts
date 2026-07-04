@@ -28,4 +28,5 @@ export interface SensorGroup {
     time: string;
   };
   chartData: SensorChartPoint[];
+  historyData: SensorChartPoint[];
 }

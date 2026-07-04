@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { useTheme } from "next-themes";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import {
   Activity,
   CloudRain,
   Clock,
   Eye,
   Globe,
+  History,
   Moon,
   Settings,
   Sprout,
@@ -15,7 +15,7 @@ import {
   ThermometerSun,
   X,
 } from "lucide-react";
-import ModernAreaChart from "../ui/ModernAreaChart";
+import { useTheme } from "@/app/components/layout/ThemeProvider";
 import { useWeatherDisplay } from "../ui/Weather";
 import { translations } from "@/app/data/mock/language";
 import type {
@@ -24,9 +24,13 @@ import type {
   SensorGroup,
 } from "@/app/types/sensors";
 
+const LazyModernAreaChart = lazy(() => import("../ui/ModernAreaChart"));
+
 type DashboardViewProps = {
   data: SensorApiResponse[];
+  historyDays: number;
   isRefreshing?: boolean;
+  staleReferenceTime: number;
 };
 
 type MutableSensorGroup = SensorGroup & {
@@ -60,9 +64,10 @@ const dateOnlyFormatter = new Intl.DateTimeFormat("en-US", {
 });
 
 function useBangkokClock() {
-  const [now, setNow] = useState(() => new Date());
+  const [now, setNow] = useState<Date | null>(null);
 
   useEffect(() => {
+    setNow(new Date());
     const timer = window.setInterval(() => setNow(new Date()), 1000);
     return () => window.clearInterval(timer);
   }, []);
@@ -92,9 +97,9 @@ function getSensorType(item: SensorApiResponse) {
   return item.SensorId >= 13 ? "PH" : "TH";
 }
 
-function processSensorData(data: SensorApiResponse[]) {
+function processSensorData(data: SensorApiResponse[], staleReferenceTime: number) {
   const groups: Record<string, MutableSensorGroup> = {};
-  const staleBefore = Date.now() - STALE_WINDOW_MS;
+  const staleBefore = staleReferenceTime - STALE_WINDOW_MS;
   let newestTimestamp = 0;
   let newestLabel = UNAVAILABLE;
 
@@ -130,6 +135,7 @@ function processSensorData(data: SensorApiResponse[]) {
           time: UNAVAILABLE,
         },
         chartData: [],
+        historyData: [],
       };
     }
 
@@ -170,16 +176,18 @@ function processSensorData(data: SensorApiResponse[]) {
   }
 
   const processed = Object.values(groups).map((group) => {
+    const historyData = [...group.chartData].sort((a, b) => b.timestamp - a.timestamp);
+    const chartData = historyData
+      .slice(0, group.type === "AIR" ? 10 : 6)
+      .sort((a, b) => a.timestamp - b.timestamp);
     const sensor: SensorGroup = {
       displayId: group.displayId,
       type: group.type,
       latest: group.latest,
-      chartData: group.chartData,
+      chartData,
+      historyData,
     };
 
-    sensor.chartData.sort((a, b) => b.timestamp - a.timestamp);
-    sensor.chartData = sensor.chartData.slice(0, sensor.type === "AIR" ? 10 : 6);
-    sensor.chartData.sort((a, b) => a.timestamp - b.timestamp);
     return sensor;
   });
 
@@ -188,7 +196,7 @@ function processSensorData(data: SensorApiResponse[]) {
     .filter((sensor) => sensor.type !== "AIR")
     .sort((a, b) => a.displayId.localeCompare(b.displayId, undefined, { numeric: true }));
   const staleCount = processed.filter((sensor) =>
-    sensor.chartData.length > 0 && sensor.chartData.every((point) => point.isStale),
+    sensor.historyData.length > 0 && sensor.historyData.every((point) => point.isStale),
   ).length;
 
   return {
@@ -201,6 +209,35 @@ function processSensorData(data: SensorApiResponse[]) {
 }
 
 type SensorMetricKey = keyof Pick<SensorChartPoint, "Temperature" | "Humidity" | "PH">;
+
+type AreaChartPanelProps = {
+  color: string;
+  data: SensorChartPoint[];
+  dataKey: SensorMetricKey;
+  height?: number;
+  hideXAxis?: boolean;
+  isDark: boolean;
+};
+
+function ChartFallback({ height = 150 }: { height?: number }) {
+  return (
+    <div
+      aria-hidden="true"
+      className="w-full animate-pulse rounded-md bg-[var(--surface-muted)]"
+      style={{ height, minHeight: height }}
+    />
+  );
+}
+
+function AreaChartPanel(props: AreaChartPanelProps) {
+  const height = props.height ?? 150;
+
+  return (
+    <Suspense fallback={<ChartFallback height={height} />}>
+      <LazyModernAreaChart {...props} />
+    </Suspense>
+  );
+}
 
 function hasMetricData(data: SensorChartPoint[], dataKey: SensorMetricKey) {
   return data.some((item) => {
@@ -247,6 +284,18 @@ function StatusPill({
         className={`h-4 w-4 ${staleCount > 0 ? "text-amber-500" : "text-emerald-500"}`}
       />
       <span>{label}</span>
+    </div>
+  );
+}
+
+function BangkokClockPill() {
+  const now = useBangkokClock();
+  const formattedDateTime = now ? dashboardTimeFormatter.format(now) : "--";
+
+  return (
+    <div className="inline-flex h-9 items-center gap-2 rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 text-sm text-[var(--muted)] shadow-sm">
+      <Clock className="h-4 w-4" />
+      <span>{formattedDateTime}</span>
     </div>
   );
 }
@@ -343,7 +392,7 @@ function ChartCard({
         <span className="h-2 w-2 rounded-full" style={{ backgroundColor: color }} />
       </div>
       {hasData ? (
-        <ModernAreaChart
+        <AreaChartPanel
           isDark={isDark}
           data={data}
           dataKey={dataKey}
@@ -373,11 +422,13 @@ function AtmosphereCards({
   airSensor,
   isDark,
   latestDataTime,
+  onShowHistory,
   translation,
 }: {
   airSensor: SensorGroup | null;
   isDark: boolean;
   latestDataTime: string;
+  onShowHistory: (sensor: SensorGroup) => void;
   translation: (typeof translations)["en"];
 }) {
   const { weatherDesc } = useWeatherDisplay();
@@ -398,7 +449,18 @@ function AtmosphereCards({
             <h2 className="mt-2 text-xl font-semibold">{airSensor.displayId}</h2>
           </div>
           <div className="text-right">
-            <div className="flex justify-end text-sky-500">{weatherDesc.icon}</div>
+            <div className="flex items-center justify-end gap-2">
+              <button
+                type="button"
+                title="Retrospective data"
+                aria-label={`Show ${airSensor.displayId} retrospective data`}
+                onClick={() => onShowHistory(airSensor)}
+                className="flex h-8 w-8 items-center justify-center rounded-md border border-[var(--border)] text-[var(--muted)] transition hover:bg-[var(--surface-muted)] hover:text-[var(--foreground)]"
+              >
+                <History className="h-4 w-4" />
+              </button>
+              <div className="flex justify-end text-sky-500">{weatherDesc.icon}</div>
+            </div>
             <p className="mt-1 text-xs font-medium text-[var(--muted)]">{weatherDesc.text}</p>
           </div>
         </div>
@@ -446,11 +508,13 @@ function SensorCard({
   sensor,
   isDark,
   onInspect,
+  onShowHistory,
   translation,
 }: {
   sensor: SensorGroup;
   isDark: boolean;
   onInspect: (sensor: SensorGroup) => void;
+  onShowHistory: (sensor: SensorGroup) => void;
   translation: (typeof translations)["en"];
 }) {
   const isPH = sensor.type === "PH";
@@ -475,6 +539,15 @@ function SensorCard({
             className="flex h-8 w-8 items-center justify-center rounded-md border border-[var(--border)] text-[var(--muted)] transition hover:bg-[var(--surface-muted)] hover:text-[var(--foreground)]"
           >
             <Eye className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            title="Retrospective data"
+            aria-label={`Show ${sensor.displayId} retrospective data`}
+            onClick={() => onShowHistory(sensor)}
+            className="flex h-8 w-8 items-center justify-center rounded-md border border-[var(--border)] text-[var(--muted)] transition hover:bg-[var(--surface-muted)] hover:text-[var(--foreground)]"
+          >
+            <History className="h-4 w-4" />
           </button>
           <div
             className="flex h-10 w-10 items-center justify-center rounded-md"
@@ -515,7 +588,7 @@ function SensorCard({
 
           <div className="mt-4 border-t border-[var(--border)] pt-3">
             {isPH ? (
-              <ModernAreaChart
+              <AreaChartPanel
                 isDark={isDark}
                 data={sensor.chartData}
                 dataKey="PH"
@@ -524,7 +597,7 @@ function SensorCard({
               />
             ) : (
               <div className="grid gap-3">
-                <ModernAreaChart
+                <AreaChartPanel
                   isDark={isDark}
                   data={sensor.chartData}
                   dataKey="Temperature"
@@ -532,7 +605,7 @@ function SensorCard({
                   height={76}
                   hideXAxis
                 />
-                <ModernAreaChart
+                <AreaChartPanel
                   isDark={isDark}
                   data={sensor.chartData}
                   dataKey="Humidity"
@@ -572,7 +645,7 @@ function InspectChartPanel({
         <span className="h-2 w-2 rounded-full" style={{ backgroundColor: color }} />
       </div>
       {hasData ? (
-        <ModernAreaChart
+        <AreaChartPanel
           color={color}
           data={data}
           dataKey={dataKey}
@@ -693,6 +766,124 @@ function SensorInspectDialog({
   );
 }
 
+function formatHistoryValue(value?: number | null) {
+  if (value === undefined || value === null || !Number.isFinite(value)) {
+    return UNAVAILABLE;
+  }
+
+  return Number.isInteger(value) ? String(value) : value.toFixed(1);
+}
+
+function hasHistoryValue(value?: number | null) {
+  return typeof value === "number" && Number.isFinite(value);
+}
+
+function SensorRetrospectDialog({
+  historyDays,
+  onClose,
+  sensor,
+  translation,
+}: {
+  historyDays: number;
+  onClose: () => void;
+  sensor: SensorGroup;
+  translation: (typeof translations)["en"];
+}) {
+  const isPH = sensor.type === "PH";
+  const rows = sensor.historyData;
+
+  return (
+    <div
+      aria-modal="true"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 p-4"
+      onMouseDown={onClose}
+      role="dialog"
+    >
+      <div
+        className="max-h-[88dvh] w-full max-w-4xl overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--foreground)] shadow-2xl"
+        onMouseDown={(event) => event.stopPropagation()}
+      >
+        <div className="flex items-start justify-between gap-4 border-b border-[var(--border)] p-4 sm:p-5">
+          <div className="min-w-0">
+            <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--muted)]">
+              <History className="h-4 w-4" />
+              Retrospective data
+            </p>
+            <h2 className="mt-1 truncate text-2xl font-semibold">{sensor.displayId}</h2>
+            <p className="mt-1 text-sm text-[var(--muted)]">
+              {isPH ? translation.phSensor : translation.thSensor} - Last {historyDays} days -{" "}
+              {rows.length} readings
+            </p>
+          </div>
+          <button
+            type="button"
+            title="Close"
+            aria-label="Close retrospective data"
+            onClick={onClose}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-[var(--border)] text-[var(--muted)] transition hover:bg-[var(--surface-muted)] hover:text-[var(--foreground)]"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        {rows.length > 0 ? (
+          <div className="max-h-[62dvh] overflow-auto">
+            <table className="w-full min-w-[560px] border-collapse text-left text-sm">
+              <thead className="sticky top-0 z-10 bg-[var(--surface)] text-xs uppercase tracking-[0.12em] text-[var(--muted)]">
+                <tr className="border-b border-[var(--border)]">
+                  <th className="px-4 py-3 font-semibold">Time</th>
+                  {isPH ? (
+                    <th className="px-4 py-3 font-semibold">pH</th>
+                  ) : (
+                    <>
+                      <th className="px-4 py-3 font-semibold">Temp</th>
+                      <th className="px-4 py-3 font-semibold">Humidity</th>
+                    </>
+                  )}
+                  <th className="px-4 py-3 font-semibold">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((point, index) => (
+                  <tr
+                    key={`${sensor.displayId}-${point.timestamp}-${index}`}
+                    className="border-b border-[var(--border)] last:border-0"
+                  >
+                    <td className="px-4 py-3 font-medium">{point.dateTimeLabel}</td>
+                    {isPH ? (
+                      <td className="px-4 py-3 text-emerald-600 dark:text-emerald-400">
+                        {formatHistoryValue(point.PH)}
+                      </td>
+                    ) : (
+                      <>
+                        <td className="px-4 py-3 text-amber-600 dark:text-amber-400">
+                          {formatHistoryValue(point.Temperature)}
+                          {hasHistoryValue(point.Temperature) ? ` ${CELSIUS_UNIT}` : ""}
+                        </td>
+                        <td className="px-4 py-3 text-sky-600 dark:text-sky-400">
+                          {formatHistoryValue(point.Humidity)}
+                          {hasHistoryValue(point.Humidity) ? " %" : ""}
+                        </td>
+                      </>
+                    )}
+                    <td className="px-4 py-3 text-[var(--muted)]">
+                      {point.isStale ? "Old" : "Fresh"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="p-4 sm:p-5">
+            <ComingSoonPanel />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function EmptySoilNodes() {
   return (
     <article className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-4 shadow-sm">
@@ -710,40 +901,52 @@ function EmptySoilNodes() {
   );
 }
 
-export default function DashboardView({ data, isRefreshing }: DashboardViewProps) {
+export default function DashboardView({
+  data,
+  historyDays,
+  isRefreshing,
+  staleReferenceTime,
+}: DashboardViewProps) {
   const { resolvedTheme, setTheme, theme } = useTheme();
   const [lang, setLang] = useState<"en" | "th">("en");
   const [inspectedSensorId, setInspectedSensorId] = useState<string | null>(null);
+  const [retrospectSensorId, setRetrospectSensorId] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const now = useBangkokClock();
 
   const currentTheme = (theme === "system" ? resolvedTheme : theme) ?? "dark";
   const isDark = currentTheme === "dark";
   const translation = translations[lang];
-  const formattedDateTime = dashboardTimeFormatter.format(now);
   const { airSensor, sensorsData, latestDataTime, staleCount, totalNodes } = useMemo(
-    () => processSensorData(data),
-    [data],
+    () => processSensorData(data, staleReferenceTime),
+    [data, staleReferenceTime],
   );
   const inspectedSensor = useMemo(
     () => sensorsData.find((sensor) => sensor.displayId === inspectedSensorId) ?? null,
     [inspectedSensorId, sensorsData],
   );
+  const retrospectSensor = useMemo(
+    () =>
+      [airSensor, ...sensorsData].find(
+        (sensor) => sensor?.displayId === retrospectSensorId,
+      ) ?? null,
+    [airSensor, retrospectSensorId, sensorsData],
+  );
 
   useEffect(() => {
-    if (!inspectedSensorId) {
+    if (!inspectedSensorId && !retrospectSensorId) {
       return;
     }
 
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
         setInspectedSensorId(null);
+        setRetrospectSensorId(null);
       }
     }
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [inspectedSensorId]);
+  }, [inspectedSensorId, retrospectSensorId]);
 
   function toggleLanguage() {
     setLang((current) => {
@@ -758,11 +961,8 @@ export default function DashboardView({ data, isRefreshing }: DashboardViewProps
         <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">
             <div className="mb-3 flex flex-wrap items-center gap-2">
-              {/* <StatusPill isRefreshing={isRefreshing} staleCount={staleCount} /> */}
-              <div className="inline-flex h-9 items-center gap-2 rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 text-sm text-[var(--muted)] shadow-sm">
-                <Clock className="h-4 w-4" />
-                <span>{formattedDateTime}</span>
-              </div>
+              <StatusPill isRefreshing={isRefreshing} staleCount={staleCount} />
+              <BangkokClockPill />
             </div>
 
             <h1 className="text-3xl font-semibold leading-tight sm:text-4xl">
@@ -775,6 +975,9 @@ export default function DashboardView({ data, isRefreshing }: DashboardViewProps
           </div>
 
           <div className="relative flex items-center gap-2 self-start">
+            <div className="hidden rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--muted)] shadow-sm sm:block">
+              {historyDays}-day history
+            </div>
             <div className="hidden rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--muted)] shadow-sm sm:block">
               {totalNodes} nodes
             </div>
@@ -804,6 +1007,9 @@ export default function DashboardView({ data, isRefreshing }: DashboardViewProps
           airSensor={airSensor}
           isDark={isDark}
           latestDataTime={latestDataTime}
+          onShowHistory={(selectedSensor) =>
+            setRetrospectSensorId(selectedSensor.displayId)
+          }
           translation={translation}
         />
 
@@ -825,6 +1031,9 @@ export default function DashboardView({ data, isRefreshing }: DashboardViewProps
                   onInspect={(selectedSensor) =>
                     setInspectedSensorId(selectedSensor.displayId)
                   }
+                  onShowHistory={(selectedSensor) =>
+                    setRetrospectSensorId(selectedSensor.displayId)
+                  }
                   sensor={sensor}
                   translation={translation}
                 />
@@ -840,6 +1049,14 @@ export default function DashboardView({ data, isRefreshing }: DashboardViewProps
           isDark={isDark}
           onClose={() => setInspectedSensorId(null)}
           sensor={inspectedSensor}
+          translation={translation}
+        />
+      ) : null}
+      {retrospectSensor ? (
+        <SensorRetrospectDialog
+          historyDays={historyDays}
+          onClose={() => setRetrospectSensorId(null)}
+          sensor={retrospectSensor}
           translation={translation}
         />
       ) : null}
