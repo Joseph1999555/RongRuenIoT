@@ -1,10 +1,11 @@
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
 import useSWR from "swr";
 import DashboardView from "./DashboardView";
 import type { SensorApiResponse } from "@/app/types/sensors";
 
-const DASHBOARD_DATA_URL = "/api/sensors?action=read&sheet=all&limit=16";
+const DASHBOARD_HISTORY_LIMIT = 1000;
 
 async function fetchSensorData(url: string): Promise<SensorApiResponse[]> {
   const response = await fetch(url);
@@ -65,27 +66,58 @@ function DashboardErrorState({ message }: { message: string }) {
   );
 }
 
-export default function DashboardData() {
+type DashboardDataProps = {
+  historyDays?: number;
+  initialData?: SensorApiResponse[];
+  initialDataUpdatedAt?: number;
+};
+
+export default function DashboardData({
+  historyDays = 3,
+  initialData = [],
+  initialDataUpdatedAt = 0,
+}: DashboardDataProps) {
+  const [dataReferenceTime, setDataReferenceTime] = useState(initialDataUpdatedAt);
+  const dashboardDataUrl = useMemo(
+    () =>
+      `/api/sensors?action=read&sheet=all&days=${historyDays}&limit=${DASHBOARD_HISTORY_LIMIT}`,
+    [historyDays],
+  );
   const { data, error, isLoading, isValidating } = useSWR(
-    DASHBOARD_DATA_URL,
+    dashboardDataUrl,
     fetchSensorData,
     {
       dedupingInterval: 30000,
       errorRetryCount: 3,
       errorRetryInterval: 5000,
+      fallbackData: initialData,
       keepPreviousData: true,
       refreshInterval: 60000,
+      revalidateOnMount: initialData.length === 0,
       revalidateOnFocus: false,
     },
   );
 
-  if (error) {
+  useEffect(() => {
+    if (data && data.length > 0) {
+      setDataReferenceTime(Date.now());
+    }
+  }, [data]);
+
+  if (error && (!data || data.length === 0)) {
     return <DashboardErrorState message={error.message} />;
   }
 
-  if (isLoading) {
+  if (isLoading && (!data || data.length === 0)) {
     return <DashboardSkeleton />;
   }
 
-  return <DashboardView data={data ?? []} isRefreshing={isValidating} />;
+  return (
+    <DashboardView
+      data={data ?? []}
+      historyDays={historyDays}
+      isRefreshing={isValidating}
+      staleReferenceTime={dataReferenceTime || initialDataUpdatedAt}
+    />
+  );
 }

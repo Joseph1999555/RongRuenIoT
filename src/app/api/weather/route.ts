@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 
-export const dynamic = "force-dynamic";
-
 const DEFAULT_LAT = "13.735269828319813";
 const DEFAULT_LON = "100.31390200299732";
+const WEATHER_REVALIDATE_SECONDS = 600;
+const WEATHER_CACHE_CONTROL = "public, s-maxage=600, stale-while-revalidate=1800";
 
 export async function GET() {
   const apiKey = process.env.OPENWEATHER_API_KEY;
@@ -32,7 +32,12 @@ export async function GET() {
   weatherUrl.searchParams.set("units", "metric");
 
   try {
-    const response = await fetch(weatherUrl, { cache: "no-store" });
+    const response = await fetch(weatherUrl, {
+      next: {
+        revalidate: WEATHER_REVALIDATE_SECONDS,
+        tags: ["weather"],
+      },
+    });
     const payload = await response.json();
 
     if (!response.ok) {
@@ -53,7 +58,7 @@ export async function GET() {
 
     return NextResponse.json(payload, {
       headers: {
-        "Cache-Control": "no-store",
+        "Cache-Control": WEATHER_CACHE_CONTROL,
       },
     });
   } catch {

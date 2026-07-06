@@ -1,24 +1,33 @@
-import { queryString } from "@/app/utils/queryString";
+import {
+    fetchSensorReadings,
+    SENSOR_HISTORY_DAYS,
+    SENSOR_HISTORY_LIMIT,
+    SENSOR_REVALIDATE_SECONDS,
+} from "@/app/data/api/sensorHistory";
 import type { SensorApiResponse } from "@/app/types/sensors";
 
 interface ParamProps {
     params: Promise<{ slug: string }>;
 }
 
-export const dynamic = "force-dynamic";
+export const revalidate = 30;
 
 export default async function SensorPage({ params }: ParamProps) {
     const { slug } = await params;
-    const queryObj = {
-        action: 'read',
-        sheet: slug,
-        limit: 10,
-    }
+    const referenceTime = Date.now();
     let readings: SensorApiResponse[] = [];
     let errorMessage: string | null = null;
 
     try {
-        readings = await queryString<SensorApiResponse[]>(queryObj);
+        readings = await fetchSensorReadings({
+            action: "read",
+            days: SENSOR_HISTORY_DAYS,
+            limit: SENSOR_HISTORY_LIMIT,
+            referenceTime,
+            revalidate: SENSOR_REVALIDATE_SECONDS,
+            sheet: slug,
+            tags: ["sensors", `sensors:${slug}`, `sensors:${slug}:${SENSOR_HISTORY_DAYS}d`],
+        });
     } catch (error) {
         errorMessage = error instanceof Error ? error.message : "Unable to load sensor data";
     }
@@ -30,6 +39,9 @@ export default async function SensorPage({ params }: ParamProps) {
             <section className="mx-auto w-full max-w-3xl rounded-lg border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm">
                 <p className="text-sm font-medium text-[var(--muted)]">Sensor</p>
                 <h1 className="mt-2 text-3xl font-semibold">{slug}</h1>
+                <p className="mt-2 text-sm text-[var(--muted)]">
+                    Last {SENSOR_HISTORY_DAYS} days of readings
+                </p>
 
                 {errorMessage ? (
                     <p className="mt-5 rounded-md border border-[var(--border)] bg-[var(--surface-muted)] p-4 text-sm text-[var(--danger)]">
