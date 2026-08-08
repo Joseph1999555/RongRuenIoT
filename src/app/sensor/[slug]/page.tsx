@@ -2,7 +2,6 @@ import {
     fetchSensorReadings,
     SENSOR_HISTORY_DAYS,
     SENSOR_HISTORY_LIMIT,
-    SENSOR_REVALIDATE_SECONDS,
 } from "@/app/data/api/sensorHistory";
 import type { SensorApiResponse } from "@/app/types/sensors";
 
@@ -24,9 +23,7 @@ export default async function SensorPage({ params }: ParamProps) {
             days: SENSOR_HISTORY_DAYS,
             limit: SENSOR_HISTORY_LIMIT,
             referenceTime,
-            revalidate: SENSOR_REVALIDATE_SECONDS,
             sheet: slug,
-            tags: ["sensors", `sensors:${slug}`, `sensors:${slug}:${SENSOR_HISTORY_DAYS}d`],
         });
     } catch (error) {
         errorMessage = error instanceof Error ? error.message : "Unable to load sensor data";

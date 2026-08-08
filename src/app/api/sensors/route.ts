@@ -4,8 +4,9 @@ import {
   normalizePositiveInteger,
   SENSOR_HISTORY_DAYS,
   SENSOR_HISTORY_LIMIT,
-  SENSOR_REVALIDATE_SECONDS,
 } from "@/app/data/api/sensorHistory";
+import { insertSensor } from "@/app/data/repositories/sensorRepository";
+import type { CreateSensorInput } from "@/app/types/sensors";
 
 const DEFAULT_LIMIT = 16;
 const MAX_LATEST_LIMIT = 100;
@@ -34,14 +35,10 @@ export async function GET(request: Request) {
   try {
     const data = await fetchSensorReadings({
       action,
-      sheet,
       limit,
       days,
-      revalidate: canCache ? SENSOR_REVALIDATE_SECONDS : 0,
-      tags: canCache
-        ? ["sensors", `sensors:${sheet}`, `sensors:${sheet}:${days}d`]
-        : undefined,
     });
+
 
     return NextResponse.json(data, {
       headers: {
@@ -59,6 +56,36 @@ export async function GET(request: Request) {
         headers: {
           "Cache-Control": "no-store",
         },
+      },
+    );
+  }
+}
+
+export async function POST(request: Request) {
+  try {
+    const body: CreateSensorInput = await request.json();
+
+    const insertId = await insertSensor(body);
+
+    return NextResponse.json(
+      {
+        success: true,
+        id: insertId,
+      },
+      {
+        status: 201,
+      },
+    );
+  } catch (error) {
+    console.error(error);
+
+    return NextResponse.json(
+      {
+        success: false,
+        message: "Unable to insert sensor data",
+      },
+      {
+        status: 500,
       },
     );
   }
