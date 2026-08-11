@@ -295,8 +295,19 @@ export default function DashboardUI({ data }: { data: SensorApiResponse[] }) {
       }
 
       const date = new Date(item["Time Stamp"]);
-      const timeOnly = date.toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" });
-      const dateOnly = date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+
+      const timeOnly = date.toLocaleTimeString("th-TH", {
+      timeZone: "Asia/Bangkok",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    });
+
+      const dateOnly = date.toLocaleDateString("en-US", {
+      timeZone: "Asia/Bangkok",
+      month: "short",
+      day: "numeric",
+    });
       const dateTimeLabel = `${dateOnly} ${timeOnly}`;
       const timestamp = date.getTime();
       const isStale = Number.isNaN(timestamp) || timestamp < staleBefore;

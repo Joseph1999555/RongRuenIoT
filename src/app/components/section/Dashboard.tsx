@@ -3,7 +3,6 @@ import {
   fetchSensorReadings,
   SENSOR_HISTORY_DAYS,
   SENSOR_HISTORY_LIMIT,
-  SENSOR_REVALIDATE_SECONDS,
 } from "@/app/data/api/sensorHistory";
 
 async function getInitialSensorData(referenceTime: number) {
@@ -13,10 +12,7 @@ async function getInitialSensorData(referenceTime: number) {
       days: SENSOR_HISTORY_DAYS,
       limit: SENSOR_HISTORY_LIMIT,
       referenceTime,
-      revalidate: SENSOR_REVALIDATE_SECONDS,
       sheet: "all",
-      tags: ["sensors", "sensors:all", `sensors:all:${SENSOR_HISTORY_DAYS}d`],
-      timeoutMs: 10000,
     });
   } catch {
     return [];
@@ -24,6 +20,7 @@ async function getInitialSensorData(referenceTime: number) {
 }
 
 export default async function DashboardPage() {
+
   const initialDataUpdatedAt = Date.now();
   const initialData = await getInitialSensorData(initialDataUpdatedAt);
 

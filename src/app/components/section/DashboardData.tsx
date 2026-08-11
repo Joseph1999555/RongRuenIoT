@@ -84,19 +84,23 @@ export default function DashboardData({
     [historyDays],
   );
   const { data, error, isLoading, isValidating } = useSWR(
-    dashboardDataUrl,
-    fetchSensorData,
-    {
-      dedupingInterval: 30000,
-      errorRetryCount: 3,
-      errorRetryInterval: 5000,
-      fallbackData: initialData,
-      keepPreviousData: true,
-      refreshInterval: 60000,
-      revalidateOnMount: initialData.length === 0,
-      revalidateOnFocus: false,
-    },
-  );
+  dashboardDataUrl,
+  fetchSensorData,
+  {
+    dedupingInterval: 1000,
+    errorRetryCount: 3,
+    errorRetryInterval: 5000,
+    fallbackData: initialData,
+    keepPreviousData: true,
+
+    // รีเฟรชทุก 5 นาที
+    refreshInterval: 300000,
+
+    revalidateOnMount: true,
+    revalidateIfStale: true,
+    revalidateOnFocus: true,
+  },
+);
 
   useEffect(() => {
     if (data && data.length > 0) {

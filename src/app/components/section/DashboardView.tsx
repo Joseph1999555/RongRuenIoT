@@ -54,11 +54,13 @@ const dashboardTimeFormatter = new Intl.DateTimeFormat("en-US", {
 });
 
 const timeOnlyFormatter = new Intl.DateTimeFormat("th-TH", {
+  timeZone: "Asia/Bangkok",
   hour: "2-digit",
   minute: "2-digit",
 });
 
 const dateOnlyFormatter = new Intl.DateTimeFormat("en-US", {
+  timeZone: "Asia/Bangkok",
   month: "short",
   day: "numeric",
 });
@@ -355,21 +357,27 @@ function MetricBlock({
   tone = "text-[var(--foreground)]",
 }: {
   label: string;
-  value: string;
+  value: string | number | null;
   unit?: string;
   tone?: string;
 }) {
   return (
     <div className="min-w-0">
-      <p className="text-xs font-medium text-[var(--muted)]">{label}</p>
+      <p className="text-xs font-medium text-[var(--muted)]">
+        {label}
+      </p>
+
       <p className={`mt-1 break-words text-2xl font-semibold leading-tight ${tone}`}>
-        {value}
-        {unit ? <span className="ml-1 text-sm font-medium text-[var(--muted)]">{unit}</span> : null}
+        {value ?? "--"}
+        {unit ? (
+          <span className="ml-1 text-sm font-medium text-[var(--muted)]">
+            {unit}
+          </span>
+        ) : null}
       </p>
     </div>
   );
 }
-
 function ChartCard({
   label,
   data,
@@ -431,25 +439,35 @@ function AtmosphereCards({
   onShowHistory: (sensor: SensorGroup) => void;
   translation: (typeof translations)["en"];
 }) {
-  const { weatherDesc } = useWeatherDisplay();
+  const {
+  weatherDesc,
+  temperature,
+  humidity,
+  feelsLike,
+  windSpeed,
+  location,
+} = useWeatherDisplay();
 
-  if (!airSensor) {
-    return <EmptyAtmosphere translation={translation} />;
-  }
+
 
   return (
-    <section className="grid gap-4 lg:grid-cols-3">
-      <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-4 shadow-sm">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <p className="flex items-center gap-2 text-sm font-semibold text-[var(--muted)]">
-              <CloudRain className="h-4 w-4 text-sky-500" />
-              {translation.atmosphere}
-            </p>
-            <h2 className="mt-2 text-xl font-semibold">{airSensor.displayId}</h2>
-          </div>
-          <div className="text-right">
-            <div className="flex items-center justify-end gap-2">
+  <section className="grid gap-4 lg:grid-cols-3">
+    <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-4 shadow-sm">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className="flex items-center gap-2 text-sm font-semibold text-[var(--muted)]">
+            <CloudRain className="h-4 w-4 text-sky-500" />
+            {translation.atmosphere}
+          </p>
+
+          <h2 className="mt-2 text-xl font-semibold">
+            {location}
+          </h2>
+        </div>
+
+        <div className="text-right">
+          <div className="flex items-center justify-end gap-2">
+            {airSensor && (
               <button
                 type="button"
                 title="Retrospective data"
@@ -459,48 +477,75 @@ function AtmosphereCards({
               >
                 <History className="h-4 w-4" />
               </button>
-              <div className="flex justify-end text-sky-500">{weatherDesc.icon}</div>
+            )}
+
+            <div className="flex justify-end text-sky-500">
+              {weatherDesc.icon}
             </div>
-            <p className="mt-1 text-xs font-medium text-[var(--muted)]">{weatherDesc.text}</p>
           </div>
-        </div>
 
-        <div className="mt-5 grid grid-cols-2 gap-4 border-t border-[var(--border)] pt-4">
-          <MetricBlock
-            label={translation.tempTrend}
-            value={airSensor.latest.temp}
-            unit={CELSIUS_UNIT}
-            tone="text-amber-600 dark:text-amber-400"
-          />
-          <MetricBlock
-            label={translation.humidity}
-            value={airSensor.latest.humidity}
-            unit="%"
-            tone="text-sky-600 dark:text-sky-400"
-          />
-        </div>
-
-        <div className="mt-4 flex items-center gap-2 border-t border-[var(--border)] pt-4 text-sm text-[var(--muted)]">
-          <Clock className="h-4 w-4" />
-          <span>{latestDataTime}</span>
+          <p className="mt-1 text-xs font-medium text-[var(--muted)]">
+            {weatherDesc.text}
+          </p>
         </div>
       </div>
 
-      <ChartCard
-        isDark={isDark}
-        label={translation.tempTrend}
-        data={airSensor.chartData}
-        dataKey="Temperature"
-        color="#f59e0b"
+      <div className="mt-5 grid grid-cols-2 gap-4 border-t border-[var(--border)] pt-4">
+        <MetricBlock
+          label="🌡 Temperature"
+          value={temperature}
+          unit={CELSIUS_UNIT}
+          tone="text-amber-600 dark:text-amber-400"
+       />
+
+        <MetricBlock
+          label="💧 Humidity"
+          value={humidity}
+          unit="%"
+          tone="text-sky-600 dark:text-sky-400"
+       />
+
+        <MetricBlock
+          label="🥵 Feels Like"
+          value={feelsLike}
+          unit={CELSIUS_UNIT}
+          tone="text-red-500 dark:text-red-400"
+       />
+
+        <MetricBlock
+          label="💨 Wind"
+          value={windSpeed}
+          unit="m/s"
+          tone="text-cyan-500 dark:text-cyan-400"
       />
-      <ChartCard
-        isDark={isDark}
-        label={translation.humTrend}
-        data={airSensor.chartData}
-        dataKey="Humidity"
-        color="#0ea5e9"
-      />
-    </section>
+      </div>
+
+      <div className="mt-4 flex items-center gap-2 border-t border-[var(--border)] pt-4 text-sm text-[var(--muted)]">
+        <Clock className="h-4 w-4" />
+        <span>{latestDataTime}</span>
+      </div>
+    </div>
+
+    {airSensor ? (
+      <>
+        <ChartCard
+          isDark={isDark}
+          label={translation.tempTrend}
+          data={airSensor.chartData}
+          dataKey="Temperature"
+          color="#f59e0b"
+        />
+
+        <ChartCard
+          isDark={isDark}
+          label={translation.humTrend}
+          data={airSensor.chartData}
+          dataKey="Humidity"
+          color="#0ea5e9"
+        />
+      </>
+    ) :  null}
+  </section>
   );
 }
 
@@ -520,14 +565,29 @@ function SensorCard({
   const isPH = sensor.type === "PH";
   const accent = isPH ? "#10b981" : "#f59e0b";
   const hasData = hasSensorData(sensor);
+  const status = getSensorStatus(sensor.latest.time);
 
   return (
     <article className="min-w-0 rounded-lg border border-[var(--border)] bg-[var(--surface)] p-4 shadow-sm transition hover:border-[var(--border-strong)]">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h3 className="truncate text-lg font-semibold">{sensor.displayId}</h3>
-          <p className="mt-1 text-sm text-[var(--muted)]">
-            {isPH ? translation.phSensor : translation.thSensor}
+          <div className="flex items-center gap-2">
+            <h3 className="truncate text-lg font-semibold">
+              {sensor.displayId}
+            </h3>
+
+            <span
+              className={`h-2.5 w-2.5 rounded-full ${status.color}`}
+            />
+          </div>
+          <p
+            className={`mt-1 text-xs font-medium ${
+            status.online
+             ? "text-emerald-500"
+             : "text-red-500"
+           }`}
+            >
+            {status.label}
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
@@ -774,6 +834,23 @@ function formatHistoryValue(value?: number | null) {
   return Number.isInteger(value) ? String(value) : value.toFixed(1);
 }
 
+function getSensorStatus(time: string) {
+  if (time === "--") {
+    return {
+      online: false,
+      label: "Offline",
+      color: "bg-red-500",
+    };
+  }
+
+  return {
+    online: true,
+    label: "Online",
+    color: "bg-emerald-500",
+  };
+}
+
+
 function hasHistoryValue(value?: number | null) {
   return typeof value === "number" && Number.isFinite(value);
 }
@@ -907,6 +984,8 @@ export default function DashboardView({
   isRefreshing,
   staleReferenceTime,
 }: DashboardViewProps) {
+  
+
   const { resolvedTheme, setTheme, theme } = useTheme();
   const [lang, setLang] = useState<"en" | "th">("en");
   const [inspectedSensorId, setInspectedSensorId] = useState<string | null>(null);

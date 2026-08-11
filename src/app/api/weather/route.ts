@@ -6,6 +6,7 @@ const WEATHER_REVALIDATE_SECONDS = 600;
 const WEATHER_CACHE_CONTROL = "public, s-maxage=600, stale-while-revalidate=1800";
 
 export async function GET() {
+
   const apiKey = process.env.OPENWEATHER_API_KEY;
 
   if (!apiKey) {

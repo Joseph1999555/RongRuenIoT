@@ -1,5 +1,5 @@
-import { fetchFromSheet } from "@/app/data/api/sheetFetch";
 import type { SensorApiResponse } from "@/app/types/sensors";
+import { getLatestSensors } from "@/app/data/repositories/sensorRepository";
 
 export const SENSOR_HISTORY_DAYS = 3;
 export const SENSOR_HISTORY_LIMIT = 1000;
@@ -12,10 +12,7 @@ type FetchSensorReadingsOptions = {
   days?: number;
   limit?: number;
   referenceTime?: number;
-  revalidate?: number;
   sheet?: string;
-  tags?: string[];
-  timeoutMs?: number;
 };
 
 export function normalizePositiveInteger(
@@ -52,6 +49,7 @@ export function filterReadingsByDays(
 
   return readings.filter((reading) => {
     const timestamp = new Date(reading["Time Stamp"]).getTime();
+
     return (
       Number.isFinite(timestamp) &&
       timestamp >= windowStart &&
@@ -65,19 +63,9 @@ export async function fetchSensorReadings({
   days = SENSOR_HISTORY_DAYS,
   limit = SENSOR_HISTORY_LIMIT,
   referenceTime = Date.now(),
-  revalidate = SENSOR_REVALIDATE_SECONDS,
   sheet = "all",
-  tags,
-  timeoutMs,
 }: FetchSensorReadingsOptions = {}) {
-  const readings = await fetchFromSheet<SensorApiResponse[]>({
-    action,
-    sheet,
-    limit,
-    revalidate,
-    tags,
-    timeoutMs,
-  });
+  const readings = await getLatestSensors(limit, sheet);
 
   const sortedReadings = sortReadingsByNewest(readings);
 
@@ -85,5 +73,9 @@ export async function fetchSensorReadings({
     return sortedReadings;
   }
 
-  return filterReadingsByDays(sortedReadings, days, referenceTime);
+  return filterReadingsByDays(
+    sortedReadings,
+    days,
+    referenceTime,
+  );
 }

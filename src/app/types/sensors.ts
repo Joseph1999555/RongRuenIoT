@@ -30,3 +30,30 @@ export interface SensorGroup {
   chartData: SensorChartPoint[];
   historyData: SensorChartPoint[];
 }
+
+export interface CreateSensorInput {
+  // ระบบเดิม (ยังใช้อยู่)
+  system_name: string;
+  sensor_id: number;
+  sensor_type: string;
+
+  // ระบบใหม่
+  sensor_ref_id?: number;
+
+  temperature?: number | null;
+  humidity?: number | null;
+  brightness?: number | null;
+  ph?: number | null;
+  raw_data?: string | null;
+}
+
+export interface RawSensorPayload {
+  id: number;
+  type: string;
+  raw: string;
+}
+
+export interface SensorUploadRequest {
+  system: string;
+  sensors: RawSensorPayload[];
+}
