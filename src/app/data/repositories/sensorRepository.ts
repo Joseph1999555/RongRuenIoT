@@ -93,22 +93,8 @@ export async function getLatestSensors(
     );
   }
 
-  console.log("=== QUERY CHECK ===");
-  console.log(
-    rows.slice(0, 10).map((row: any) => ({
-      id: row.id,
-      timestamp: row.sensor_timestamp,
-      system: row.system_code,
-      sensor_id: row.sensor_id,
-      temperature: row.temperature,
-      humidity: row.humidity,
-    })),
-  );
 
   const mapped = mapRows(rows);
-
-  console.log("=== MAPPED CHECK ===");
-  console.log(mapped.slice(0, 10));
 
   return mapped;
 }
