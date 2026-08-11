@@ -48,7 +48,6 @@ export async function getLatestSensors(
   system: string = "all",
 ): Promise<SensorApiResponse[]> {
 
-  // TEMP: ตรวจสอบ Database ที่ Vercel เชื่อมต่ออยู่
   await checkDatabaseConnection();
 
   let rows: RowDataPacket[];
@@ -94,7 +93,24 @@ export async function getLatestSensors(
     );
   }
 
-  return mapRows(rows);
+  console.log("=== QUERY CHECK ===");
+  console.log(
+    rows.slice(0, 10).map((row: any) => ({
+      id: row.id,
+      timestamp: row.sensor_timestamp,
+      system: row.system_code,
+      sensor_id: row.sensor_id,
+      temperature: row.temperature,
+      humidity: row.humidity,
+    })),
+  );
+
+  const mapped = mapRows(rows);
+
+  console.log("=== MAPPED CHECK ===");
+  console.log(mapped.slice(0, 10));
+
+  return mapped;
 }
 
 async function findSensorRefId(
