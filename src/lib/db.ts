@@ -9,6 +9,8 @@ const pool = mysql.createPool({
   password: process.env.DB_PASSWORD,
   database: process.env.DB_NAME,
 
+  timezone: "+07:00",
+
   ssl: {
     ca: fs.readFileSync(
       path.join(process.cwd(), "certs", "ca.pem"),
@@ -20,25 +22,5 @@ const pool = mysql.createPool({
   connectionLimit: 10,
   queueLimit: 0,
 });
-
-// ทดสอบว่า Vercel ต่อ Database ตัวไหน
-async function checkDatabase() {
-  try {
-    const [rows] = await pool.query(`
-      SELECT
-        DATABASE() AS db_name,
-        @@hostname AS db_hostname,
-        MAX(sensor_timestamp) AS latest_time,
-        COUNT(*) AS total_rows
-      FROM sensor_data
-    `);
-
-    console.log("DB CHECK:", rows);
-  } catch (error) {
-    console.error("DB CHECK ERROR:", error);
-  }
-}
-
-checkDatabase();
 
 export default pool;
