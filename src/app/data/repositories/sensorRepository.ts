@@ -37,9 +37,6 @@ async function checkDatabaseConnection() {
     FROM sensor_data
   `);
 
-  console.log("=== DB CHECK ===");
-  console.log(rows);
-
   return rows;
 }
 
