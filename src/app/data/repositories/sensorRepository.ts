@@ -23,10 +23,34 @@ function mapRows(rows: RowDataPacket[]): SensorApiResponse[] {
   }));
 }
 
+/**
+ * ตรวจสอบว่า Vercel กำลังเชื่อมต่อ Database ตัวไหน
+ * และ Database นั้นมีข้อมูลล่าสุดถึงเมื่อไหร่
+ */
+async function checkDatabaseConnection() {
+  const [rows] = await db.query<RowDataPacket[]>(`
+    SELECT
+      DATABASE() AS db_name,
+      @@hostname AS db_hostname,
+      MAX(sensor_timestamp) AS latest_time,
+      COUNT(*) AS total_rows
+    FROM sensor_data
+  `);
+
+  console.log("=== DB CHECK ===");
+  console.log(rows);
+
+  return rows;
+}
+
 export async function getLatestSensors(
   limit: number = 1000,
   system: string = "all",
 ): Promise<SensorApiResponse[]> {
+
+  // TEMP: ตรวจสอบ Database ที่ Vercel เชื่อมต่ออยู่
+  await checkDatabaseConnection();
+
   let rows: RowDataPacket[];
 
   if (system === "all") {
